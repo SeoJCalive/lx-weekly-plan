@@ -5,11 +5,11 @@ import { formLayout } from "./form-layout" with {type:"macro"};
 
 const layout = await formLayout();
 const px = (units: number) => units/75;
-function Runs({line}:{line:RichText}) {
+export function Runs({line}:{line:RichText}) {
   return <>{line.map((s,i) => <span key={i} data-color={s.color}
     style={{fontWeight:s.bold === undefined ? undefined : s.bold ? 700 : 400}}>{s.text}</span>)}</>;
 }
-function Nested({table}:{table:WorkTable}) {
+export function Nested({table}:{table:WorkTable}) {
   const total = table.columnWidths.reduce((a,b)=>a+b);
   return <table className="nested" style={{width:px(total)}}>
     {!!table.caption.length && <caption>{table.caption.map((l,i)=><div key={i}><Runs line={l}/></div>)}</caption>}

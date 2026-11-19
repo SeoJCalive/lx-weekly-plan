@@ -1,8 +1,9 @@
 import type { Database } from "bun:sqlite";
-import type { EditLock, ItemStatus, ItemView, Person, WeekView } from "../shared/api";
+import type { EditLock, ItemAction, ItemStatus, ItemView, Person, WeekView } from "../shared/api";
 import { categories, type WorkCategory, type WorkItem } from "../shared/weekly-plan";
 import { organisations, people, personColumns, readPlan } from "./database";
 import { generateHwpx } from "./hwpx";
+import { createReview } from "./review";
 import { ApiFailure, object, saveInput, text } from "./validation";
 
 export const lockIdleMs = 90_000;
@@ -21,6 +22,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
   templateBytes: Uint8Array;
   now?: () => number;
 }) {
+  const review = createReview(db, now);
   function currentPerson(request: Request): Person | null {
     const token = /(?:^|;\s*)lx_session=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
     if (!token) return null;
@@ -59,24 +61,22 @@ export function createApp({ db, templateBytes, now = Date.now }: {
   }
   function itemView(row: ItemRow, person: Person): ItemView {
     const assigned = assignedPeople(row.id), currentLock = lock(row.id);
+    const visible = review.inScope(row.departmentId, person);
+    const content: WorkItem = visible ? JSON.parse(row.content_json) :
+      { id: row.id, title: [], content: [], notes: [], tables: [], assignee: "" };
     return {
-      ...JSON.parse(row.content_json), departmentId: row.departmentId, category: row.category,
-      status: row.status, creatorId: row.creatorId, assignedPeople: assigned, assigneeMode: row.assigneeMode,
-      lock: currentLock, canEdit: assigned.some((assigned) => assigned.id === person.id) &&
+      ...content, departmentId: row.departmentId, category: row.category,
+      status: row.status, creatorId: visible ? row.creatorId : null,
+      assignedPeople: visible ? assigned : [], assigneeMode: row.assigneeMode,
+      lock: visible ? currentLock : null, canEdit: row.status !== "검토 요청" &&
+        assigned.some((assigned) => assigned.id === person.id) &&
         (!currentLock || currentLock.personId === person.id),
+      actions: visible ? review.actions(row.id, person) : [],
+      review: visible ? review.itemReview(row.id) : { version: null, messages: [] },
     };
   }
   function automaticAssignee(id: string): string {
     return assignedPeople(id).map((person) => `${person.name} ${person.title}`).join(", ");
-  }
-  function canAssign(departmentId: string, person: Person): boolean {
-    const units = organisations(db);
-    let id: string | null = departmentId;
-    while (id) {
-      if (id === person.organisationId) return true;
-      id = units.find((unit) => unit.id === id)?.parentId ?? null;
-    }
-    return false;
   }
   async function body(request: Request): Promise<Record<string, unknown>> {
     try {
@@ -132,6 +132,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         })();
         return new Response(null, { status: 204, headers: { "Set-Cookie": cookie("", true) } });
       }
+      if (path === "/api/dashboard" && method === "GET") return json(review.dashboard(person));
+      if (path === "/api/todos" && method === "GET") return json(review.todos(person));
       if (path === "/api/week" && method === "GET") {
         const plan = readPlan(db);
         const week = db.query<{ id: number }, []>("SELECT id FROM weeks WHERE is_current = 1").get()!;
@@ -169,6 +171,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
             WHERE section_id = ? AND category = ?`).run(
             id, section.id, category, JSON.stringify(item), person.id, section.id, category,
           );
+          review.invalidate(section.id);
         })();
         return json(itemView(itemRow(id), person), 201);
       }
@@ -181,15 +184,39 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           FROM sections s JOIN weeks w ON w.id = s.week_id
           WHERE s.department_id = ? AND w.is_current = 1`).get(departmentId)!;
         const labels = { ...JSON.parse(section.labels_json), thisWeek };
-        db.query("UPDATE sections SET labels_json = ? WHERE id = ?").run(JSON.stringify(labels), section.id);
+        db.transaction(() => {
+          if (JSON.stringify(labels) !== section.labels_json) review.invalidate(section.id);
+          db.query("UPDATE sections SET labels_json = ? WHERE id = ?").run(JSON.stringify(labels), section.id);
+        })();
         return json({ departmentId, labels });
+      }
+      const reviewMatch = /^\/api\/items\/([^/]+)\/(request-review|withdraw|approve|return)$/.exec(path);
+      if (reviewMatch && method === "POST") {
+        const [, id, action] = reviewMatch;
+        review.itemAction(id, action as ItemAction, person, action === "return" ? await body(request) : {});
+        return json(itemView(itemRow(id), person));
+      }
+      const stageMatch = /^\/api\/review-stages\/([1-9]\d*)\/submit$/.exec(path);
+      if (stageMatch && method === "POST") {
+        review.submit(Number(stageMatch[1]), person);
+        return json(review.dashboard(person));
+      }
+      const sectionMatch = /^\/api\/review-stages\/([1-9]\d*)\/sections\/([^/]+)\/(approve|return)$/.exec(path);
+      if (sectionMatch && method === "POST") {
+        review.decideSection(Number(sectionMatch[1]), sectionMatch[2], sectionMatch[3] as "approve" | "return",
+          person, sectionMatch[3] === "return" ? await body(request) : {});
+        return json(review.dashboard(person));
       }
       const match = /^\/api\/items\/([^/]+)(?:\/(assignment|lock))?$/.exec(path);
       if (match) {
         const id = match[1], action = match[2], row = itemRow(id);
-        if (!action && method === "GET") return json(itemView(row, person));
+        if (!action && method === "GET") {
+          if (!review.inScope(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목만 열람할 수 있습니다.");
+          return json(itemView(row, person));
+        }
         if (action === "assignment" && (method === "POST" || method === "DELETE")) {
-          if (!canAssign(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목에만 본인을 할당할 수 있습니다.");
+          if (!review.inScope(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목에만 본인을 할당할 수 있습니다.");
+          if (row.status === "검토 요청") throw new ApiFailure(409, "검토 요청을 회수한 뒤 담당자를 바꾸세요.");
           db.transaction(() => {
             unlocked(id, person);
             if (method === "POST") db.query("INSERT OR IGNORE INTO assignments VALUES (?, ?)").run(id, person.id);
@@ -200,6 +227,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
             if (row.assigneeMode === "automatic") {
               const item: WorkItem = JSON.parse(row.content_json);
               item.assignee = automaticAssignee(id);
+              if (JSON.stringify(item) !== row.content_json) review.contentChanged(id);
               db.query("UPDATE items SET content_json = ? WHERE id = ?").run(JSON.stringify(item), id);
             }
           })();
@@ -207,6 +235,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         }
         if (action === "lock" && (method === "POST" || method === "DELETE")) {
           editable(row, person);
+          if (method === "POST" && row.status === "검토 요청")
+            throw new ApiFailure(409, "검토 요청을 회수한 뒤 편집하세요.");
           db.transaction(() => {
             unlocked(id, person);
             if (method === "POST") db.query(`INSERT INTO edit_locks VALUES (?, ?, ?)
@@ -219,6 +249,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         if (!action && method === "PUT") {
           const input = saveInput(await body(request));
           editable(row, person);
+          if (row.status === "검토 요청") throw new ApiFailure(409, "검토 요청을 회수한 뒤 수정하세요.");
           db.transaction(() => {
             if (!unlocked(id, person)) throw new ApiFailure(409, "편집 잠금을 먼저 확보하세요.", { code: "LOCK_REQUIRED" });
             const previous: WorkItem = JSON.parse(row.content_json);
@@ -231,7 +262,9 @@ export function createApp({ db, templateBytes, now = Date.now }: {
             };
             const hasContent = [...item.title, ...item.content.flat(), ...item.notes.flat()]
               .some((span) => span.text.trim()) || item.tables.length > 0;
-            const status = row.status === "미작성" && hasContent ? "작성 중" : row.status;
+            if (JSON.stringify(item) !== row.content_json) review.contentChanged(id);
+            const currentStatus = itemRow(id).status;
+            const status = currentStatus === "미작성" && hasContent ? "작성 중" : currentStatus;
             db.query("UPDATE items SET content_json = ?, status = ?, assignee_mode = ? WHERE id = ?")
               .run(JSON.stringify(item), status, assigneeMode, id);
             db.query("UPDATE edit_locks SET expires_at = ? WHERE item_id = ? AND person_id = ?")
