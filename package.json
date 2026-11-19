@@ -1,0 +1,17 @@
+{
+  "name": "lx-weekly-plan",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "export": "bun src/server/export.ts",
+    "test": "bun test",
+    "typecheck": "bun check --no-script",
+    "export:cases": "bun scripts/export-cases.ts"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0"
+  }
+}
