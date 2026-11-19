@@ -1,7 +1,7 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { sumValue, type RichText, type TableCell, type WeeklyPlan, type WorkItem, type WorkTable } from "../shared/weekly-plan";
 import { paragraphs, paragraphText, readTemplate, tableCells, type ItemTemplate } from "./template";
-import { child, children, clone, descendants, element, escapeXml, serialize, setAttribute, setText, type XmlNode } from "./xml";
+import { child, children, clone, descendants, element, escapeXml, serialize, setAttribute, setText, textContent, type XmlNode } from "./xml";
 
 const equal = (a: unknown, b: unknown): boolean => Bun.deepEquals(a, b);
 const columnName = (column: number): string => {
@@ -63,8 +63,16 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
   function replaceText(p: XmlNode, value: string): void {
     if (paragraphText(p) === value) return;
     const texts = children(p, "hp:run").flatMap((r) => children(r, "hp:t"));
-    setText(texts[0], value);
-    for (const text of texts.slice(1)) setText(text, "");
+    let remaining = value;
+    for (const [index, text] of texts.entries()) {
+      const previous = textContent(text);
+      if (index < texts.length - 1 && remaining.startsWith(previous))
+        remaining = remaining.slice(previous.length);
+      else {
+        setText(text, remaining);
+        remaining = "";
+      }
+    }
     p.children = p.children.filter((c) => typeof c === "string" || c.name !== "hp:linesegarray");
   }
   function freshIds(node: XmlNode): void {
@@ -291,7 +299,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         const defaultAssignee = children(sourceRows[headerRows + 1], "hp:tc")[col];
         let body: XmlNode, assignee: XmlNode;
         if (item) {
-          const known = t.items.get(item.id);
+          const known = t.items.get(item.templateItemId ?? item.id);
           const prototype = known ?? [...t.items.values()].find((i) => i.body === defaultBody)!;
           [body, assignee] = renderItem(item, prototype, index + 1, !known);
         } else {

@@ -96,6 +96,26 @@ label input,label select,label textarea {font-weight:400}
 .check input {width:auto}
 .submit-line {padding:var(--s3);background:var(--soft);margin-bottom:var(--s4)}
 .notice,.change-note {margin:var(--s2) 0 var(--s4)}
+.release {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--s4);border-top:1px solid var(--ink);padding:var(--s5) 0}
+.release p {margin-top:var(--s2)}
+.release [role=alert] {flex-basis:100%}
+.publications {grid-template-columns:minmax(0,1fr) minmax(0,2.4fr)}
+.publications aside h2 {margin-bottom:var(--s4)}
+.post-row {display:grid;justify-content:start;gap:var(--s2);width:100%;text-align:left;overflow-wrap:anywhere;word-break:keep-all;border:0;border-bottom:1px solid var(--line);padding:var(--s4) var(--s3)}
+.post-row[aria-pressed=true] {background:var(--wash)}
+.post-row b {font-size:var(--body)}
+.post-row span {font-weight:400;color:var(--mute)}
+.publications .section-head {flex-wrap:wrap}
+.publications .paper-frame+.paper-frame {margin-top:var(--s5)}
+.cover {margin-bottom:var(--s4);border-block:1px solid var(--line)}
+.cover summary {font-weight:600;font-size:var(--small);padding:var(--s2);cursor:pointer}
+.cover-paper {position:relative;container-type:inline-size;max-width:210mm;aspect-ratio:210/297;margin:auto;background:var(--doc-paper);color:var(--doc-ink);text-align:center;font-family:var(--serif)}
+.cover-title {position:absolute;inset:24% 13% auto;display:grid;gap:1cqw;font:700 5.6cqw/1.15 var(--sans)}
+.cover-title b+b {font-size:4.4cqw}
+.cover-title img {width:100%;height:1.5cqw}
+.cover-date,.cover-logo {position:absolute;inset:58% 0 auto;font-size:4.4cqw}
+.cover-logo {top:80%;display:flex;justify-content:center;align-items:end;gap:2cqw}
+.cover-logo img:first-child {width:12%}.cover-logo img:last-child {width:17%}
 @media(max-width:860px) {
   .board {grid-template-columns:1fr;gap:var(--s4)}
   .board>aside {border:0;padding-right:0}
@@ -160,6 +180,7 @@ label input,label select,label textarea {font-weight:400}
   .entry {grid-template-columns:1fr;padding-top:var(--s8)}.entry form {max-width:none}
   .mast {gap:var(--s2)} .identity {margin:0;width:100%}
   .page {padding-top:var(--s5)}.page-heading {display:grid}.week {display:flex;gap:var(--s2);text-align:left}
+  label.week {display:grid}
   .section-head,.label-tools,.edit-tools {flex-wrap:wrap}.categories button {padding-inline:var(--s1)}
   button,.button,.mast nav :is(a,button) {min-height:44px}
 }

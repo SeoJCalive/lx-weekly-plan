@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DepartmentView, ItemView, Organisation, Person, WeekView } from "../shared/api";
 import { categories, plainText, type WorkCategory } from "../shared/weekly-plan";
 import { api } from "./api";
@@ -7,7 +7,7 @@ import { editLines, editText, linesText, marked } from "./text";
 import { names, Status } from "./Workflow";
 
 const itemPath=(it:ItemView)=>`items/${encodeURIComponent(it.id)}`;
-export function Writing({person,week,units,departmentId,itemId}:{person:Person;week:WeekView;units:Organisation[];departmentId?:string;itemId?:string}) {
+export function Writing({person,week,units,departmentId,itemId,picker}:{person:Person;week:WeekView;units:Organisation[];departmentId?:string;itemId?:string;picker:ReactNode}) {
   const sections=week.departments.filter(d=>{
     let id:string|null=d.id;
     while (id) { if (id===person.organisationId) return true; id=units.find(o=>o.id===id)?.parentId ?? null; }
@@ -17,14 +17,14 @@ export function Writing({person,week,units,departmentId,itemId}:{person:Person;w
   const current=sections.find(d=>d.id===id);
   return <main id="writing" className="page">
     <div className="page-heading"><div><div className="context">{week.title} <span>/</span> 작성</div><h1>{current?.name} 업무 작성</h1></div>
-      <div className="week"><span>현재 주차</span><b>{week.writtenDate.slice(0,4)}년 {week.thisWeekPeriod.replace(/[()]/g,"")}</b></div>
+      {picker}
     </div>
     {current ? <Desk key={current.id} initial={current} week={week} person={person} sections={sections} onSection={setId} itemId={itemId}/> : <p>작성 가능한 처가 없습니다.</p>}
   </main>;
 }
 function Desk({initial,week,person,sections,onSection,itemId}:{initial:DepartmentView;week:WeekView;person:Person;sections:DepartmentView[];onSection:(id:string)=>void;itemId?:string}) {
   const key=`lx:${week.id}:${person.id}:${initial.id}`;
-  const first=categories.flatMap(c=>initial.items[c]).find(it=>it.id===(itemId ?? sessionStorage.getItem(key))) ?? initial.items.thisWeek[0];
+  const first=categories.flatMap(c=>initial.items[c]).find(it=>it.id===(itemId ?? sessionStorage.getItem(key))) ?? initial.items.thisWeek[0] ?? initial.items.lastWeek[0] ?? initial.items.ongoing[0];
   const [dept,setDept]=useState(initial), [cat,setCat]=useState<WorkCategory>(first?.category ?? "thisWeek");
   const [item,setItem]=useState<ItemView|undefined>(first), [draft,setDraft]=useState<ItemView|undefined>(first);
   const [label,setLabel]=useState(initial.labels.thisWeek), [editLabel,setEditLabel]=useState(false);
@@ -116,7 +116,7 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
     if(!leaveOK())return;
     void action(async()=>{
       await release();
-      const next=await api<ItemView>("items","POST",{departmentId:dept.id,category:cat});
+      const next=await api<ItemView>(`items?weekId=${week.id}`,"POST",{departmentId:dept.id,category:cat});
       select(next);select(await api<ItemView>(itemPath(next)+"/assignment","POST"));await open(next);
       document.querySelector<HTMLInputElement>("#item-title")?.focus();
     });
@@ -183,12 +183,12 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
       </section>}
     </section>
     <aside className="preview-pane" aria-label="양식 미리보기"><div className="section-head"><h2>양식 미리보기</h2>
-      <a className="button" href="/api/week/hwpx" download onClick={e=>{
+      <a className="button" href={`/api/week/hwpx?weekId=${week.id}`} download onClick={e=>{
         if((dirty || labelDirty) && !confirm("저장된 내용으로 전체 주차 파일을 내려받을까요?"))e.preventDefault();
       }}>전체 주차 HWPX 다운로드</a></div>
       {person.departmentId===dept.id && <div className="label-tools">{editLabel ? <form onSubmit={e=>{
         e.preventDefault();void action(async()=>{
-          const result=await api<Pick<DepartmentView,"labels">>(`departments/${dept.id}/label`,"PUT",{thisWeek:label});
+          const result=await api<Pick<DepartmentView,"labels">>(`departments/${dept.id}/label?weekId=${week.id}`,"PUT",{thisWeek:label});
           setDept(d=>({...d,labels:result.labels}));setLabel(result.labels.thisWeek);setEditLabel(false);
         });}}><label>오른쪽 소제목<input value={label} required onChange={e=>setLabel(e.target.value)}/></label>
         <button disabled={busy || !online || !label.trim()}>적용</button><button type="button" onClick={()=>{setLabel(dept.labels.thisWeek);setEditLabel(false);}}>취소</button></form>

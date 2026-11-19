@@ -73,6 +73,26 @@ export interface WeekView extends Omit<WeeklyPlan, "departments"> {
   id: number;
   departments: DepartmentView[];
 }
+export interface WeekSummary extends Omit<WeeklyPlan, "departments"> {
+  id: number;
+  isCurrent: boolean;
+  nextWeekId: number | null;
+}
+export interface BoardPost {
+  id: number;
+  weekId: number;
+  version: number;
+  title: string;
+  publishedAt: number;
+  publishedBy: number;
+}
+export interface BoardDocument extends BoardPost {
+  document: WeeklyPlan;
+}
+export interface PublishResult {
+  post: BoardPost;
+  nextWeek: WeekSummary;
+}
 export interface SignInRequest {
   name: string;
   employeeNumber: string;

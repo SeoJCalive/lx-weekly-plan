@@ -96,6 +96,16 @@ export function openDatabase(path = databasePath): Database {
     );
     CREATE TABLE IF NOT EXISTS change_revision (id INTEGER PRIMARY KEY CHECK(id = 1), revision INTEGER NOT NULL);
     INSERT OR IGNORE INTO change_revision VALUES (1, 0);
+    CREATE TABLE IF NOT EXISTS week_rollovers (
+      source_week_id INTEGER PRIMARY KEY REFERENCES weeks(id),
+      next_week_id INTEGER NOT NULL UNIQUE REFERENCES weeks(id)
+    );
+    CREATE TABLE IF NOT EXISTS board_posts (
+      id INTEGER PRIMARY KEY, week_id INTEGER NOT NULL REFERENCES weeks(id),
+      version INTEGER NOT NULL, title TEXT NOT NULL, document_json TEXT NOT NULL,
+      hwpx BLOB NOT NULL, published_at INTEGER NOT NULL,
+      published_by INTEGER NOT NULL REFERENCES people(id), UNIQUE(week_id, version)
+    );
   `);
   // Upgrade the existing U2 database once; the workflow itself follows these rows.
   if (!db.query<{ name: string }, []>("PRAGMA table_info(review_stages)").all().some((column) => column.name === "review_unit")) {
@@ -104,7 +114,7 @@ export function openDatabase(path = databasePath): Database {
       UPDATE review_stages SET review_unit = 'item' WHERE organisation_id IN
         (SELECT id FROM organisations WHERE kind = 'department');`);
   }
-  for (const table of ["items", "assignments", "edit_locks", "sections", "review_sections", "review_records"]) {
+  for (const table of ["items", "assignments", "edit_locks", "sections", "review_sections", "review_records", "weeks", "board_posts"]) {
     for (const action of ["INSERT", "UPDATE", "DELETE"]) db.exec(`
       CREATE TRIGGER IF NOT EXISTS revision_${table}_${action} AFTER ${action} ON ${table}
       BEGIN UPDATE change_revision SET revision = revision + 1 WHERE id = 1; END;
@@ -151,10 +161,14 @@ export function openDatabase(path = databasePath): Database {
   return db;
 }
 
-export function readPlan(db: Database): WeeklyPlan {
-  const week = db.query<{ id: number; metadata_json: string }, []>(
-    "SELECT id, metadata_json FROM weeks WHERE is_current = 1",
-  ).get()!;
+export function currentWeekId(db: Database): number {
+  return db.query<{ id: number }, []>("SELECT id FROM weeks WHERE is_current = 1").get()!.id;
+}
+
+export function readPlan(db: Database, weekId = currentWeekId(db)): WeeklyPlan {
+  const week = db.query<{ id: number; metadata_json: string }, [number]>(
+    "SELECT id, metadata_json FROM weeks WHERE id = ?",
+  ).get(weekId)!;
   const sections = db.query<{
     id: number; department_id: string; name: string; parentOffice: string | null; labels_json: string;
   }, [number]>(`SELECT s.id, s.department_id, o.name,

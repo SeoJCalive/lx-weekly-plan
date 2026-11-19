@@ -19,6 +19,30 @@ describe("weekly plan hwpx", () => {
     const generated = strFromU8(unzipSync(generate())["Contents/section0.xml"]);
     expect(generated).toBe(original.replace("<hp:t> 4</hp:t>", "<hp:t> 3</hp:t>"));
   });
+  test("new week periods retain the form's separate heading and date typography", () => {
+    const data = {
+      ...seed, titlePeriod: "<11.　16.　~　11.　20.>", writtenDate: "2026. 11. 16.",
+      lastWeekPeriod: "(11. 9. ~ 11. 13.)", thisWeekPeriod: "(11. 16. ~ 11. 20.)",
+    };
+    const doc = section(generate(data));
+    for (const department of readTemplate(template).departments) {
+      const main = descendants(doc, "hp:tbl").find((table) => table.attributes.id === department.main.attributes.id)!;
+      for (const [index, heading, period] of [
+        [0, "전주 실적", data.lastWeekPeriod], [1, "금주 계획", data.thisWeekPeriod],
+      ] as const) {
+        const p = paragraphs(tableCells(main)[index])[0];
+        const runs = children(p, "hp:run");
+        expect(paragraphText(p)).toBe(`${heading}${period}`);
+        expect(runs.map((run) => run.attributes.charPrIDRef)).toEqual(["30", "31"]);
+        expect(children(runs[0], "hp:t").map((text) => serialize(text))).toEqual([`<hp:t>${heading}</hp:t>`]);
+        expect(children(runs[1], "hp:t").map((text) => serialize(text))).toEqual([`<hp:t>${period}</hp:t>`]);
+      }
+    }
+    expect(children(descendants(doc, "hp:p").find((p) => p.attributes.id === "11")!, "hp:run")[0].attributes.charPrIDRef)
+      .toBe("22");
+    expect(children(descendants(doc, "hp:p").find((p) => p.attributes.id === "26")!, "hp:run")[0].attributes.charPrIDRef)
+      .toBe("23");
+  });
   test("edited item content becomes XML text, with escaping and multiple lines", () => {
     const data = changedCases()[0];
     data.departments[0].items.lastWeek[0].content.push([{ text: ' ○ <추가 & "본문">' }]);

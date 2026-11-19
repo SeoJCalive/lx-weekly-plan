@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { DepartmentView, ItemView, WeekView } from "../shared/api";
-import { sumValue, type RichText, type WorkTable } from "../shared/weekly-plan";
+import { sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
 import { formLayout } from "./form-layout" with {type:"macro"};
 
 const layout = await formLayout();
@@ -20,19 +19,25 @@ export function Nested({table}:{table:WorkTable}) {
         {c.formula ? <b>{sumValue(table,c.formula)}</b> : c.paragraphs.map((l,i)=><div key={i}><Runs line={l}/></div>)}
       </td>)}</tr>)}</tbody></table>;
 }
-function rows(groups: (ItemView|undefined)[][], ongoing=false) {
+function rows(groups: (WorkItem|undefined)[][], ongoing=false) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
-    <tr>{pair.map((item,j)=><td className="doc-body" key={j} style={{height:px(layout.byItem[item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
+    <tr>{pair.map((item,j)=><td className="doc-body" key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
       {item && <><div className="doc-title">{i+1}. <Runs line={item.title}/></div>
         {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
         {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
         {!!item.tables.length && <div className="subtables">{item.tables.map(t=><Nested key={t.id} table={t}/>)}</div>}
       </>}</td>)}</tr>
-    <tr>{pair.map((item,j)=><td className="doc-assignee" key={j} style={{height:px(layout.byItem[item?.id ?? ""]?.[1] ?? 2100)}}>
+    <tr>{pair.map((item,j)=><td className="doc-assignee" key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[1] ?? 2100)}}>
       {item && <><b>➢ (업무담당자)</b> {item.assignee}</>}</td>)}</tr>
   </Fragment>);
 }
-export function Preview({dept,week}:{dept:DepartmentView;week:WeekView}) {
+export function Cover({week}:{week:WeeklyPlan}) {
+  return <details className="cover"><summary>표지 보기</summary><div className="cover-paper" aria-label="문서 표지">
+    <div className="cover-title"><img alt="" src={layout.cover[0]}/><b>{week.title}</b><b>{week.titlePeriod}</b><img alt="" src={layout.cover[1]}/></div>
+    <b className="cover-date">{week.writtenDate}</b><div className="cover-logo"><img alt="LX" src={layout.cover[2]}/><img alt="한국국토정보공사" src={layout.cover[3]}/></div>
+  </div></details>;
+}
+export function Preview({dept,week}:{dept:Department;week:WeeklyPlan}) {
   const host=useRef<HTMLDivElement>(null), [available,setAvailable]=useState(700);
   const [main,ongoing]=layout.bySection[dept.id] ?? [[51782,2500,2300,0],[51782,2300,0,0]];
   const width=Math.max(px(main[0]),px(ongoing[0])), scale=Math.max(.72,Math.min(1.15,available/width));

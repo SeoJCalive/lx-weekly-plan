@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { itemStatuses, type DashboardView, type DepartmentView, type ItemView, type Organisation, type Person, type WeekView } from "../shared/api";
 import { categories, plainText } from "../shared/weekly-plan";
 import { api } from "./api";
 import { Nested, Preview, Runs } from "./Preview";
 import { Heading, names, type Place, Status } from "./Workflow";
 
-function Decision({path,actions,items,done}:{path:string;actions:readonly string[];items?:ItemView[];done:(text:string)=>void}) {
+function Decision({path,actions,items,done,weekId}:{path:string;actions:readonly string[];items?:ItemView[];done:(text:string)=>void;weekId?:number}) {
   const [returning,setReturning]=useState(false),[message,setMessage]=useState(""),[ids,setIds]=useState<string[]>([]);
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
   async function decide(action:"approve"|"return") {
     setBusy(true);setError("");
     try {
-      await api(`${path}/${action}`,"POST",action==="approve"?undefined:{message,...(items?{itemIds:ids}:{})});
+      await api(`${path}/${action}${weekId?`?weekId=${weekId}`:""}`,"POST",action==="approve"?undefined:{message,...(items?{itemIds:ids}:{})});
       setReturning(false);setMessage("");setIds([]);done(action==="approve"?"승인했습니다.":"수정 요청을 보냈습니다.");
     } catch(e){setError((e as Error).message);} finally{setBusy(false);}
   }
@@ -42,7 +42,7 @@ function ItemContent({item}:{item:ItemView}) {
     <p>업무담당자 · {text.assignee || "미지정"}</p>
   </div>;
 }
-export function Dashboard({board,week,units,person,place,refresh}:{board:DashboardView;week:WeekView;units:Organisation[];person:Person;place:Place;refresh:()=>void}) {
+export function Dashboard({board,week,units,person,place,refresh,picker,release}:{board:DashboardView;week:WeekView;units:Organisation[];person:Person;place:Place;refresh:()=>void;picker:ReactNode;release?:ReactNode}) {
   const target=board.stages.find(s=>s.id===place.stageId);
   const [departmentId,setDepartment]=useState(place.departmentId ?? (target && board.departments.find(d=>
     d.departmentId===target.organisationId || d.reviews.some(r=>r.stageId===target.id))?.departmentId) ??
@@ -66,7 +66,7 @@ export function Dashboard({board,week,units,person,place,refresh}:{board:Dashboa
     const v=it.review.version;return v && sectionReview.versionIds.includes(v.id)?[{...it,...v.content}]:[];
   });
   async function submit(id:number){
-    setBusy(true);setError("");try{await api(`review-stages/${id}/submit`,"POST");done(`${stageName(id)} 취합본을 상신했습니다.`);}
+    setBusy(true);setError("");try{await api(`review-stages/${id}/submit?weekId=${week.id}`,"POST");done(`${stageName(id)} 취합본을 상신했습니다.`);}
     catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
   function unitRow(id:string){
@@ -74,7 +74,7 @@ export function Dashboard({board,week,units,person,place,refresh}:{board:Dashboa
     return d && <button key={id} className="unit-row" aria-pressed={departmentId===id} onClick={()=>choose(id)}>
       <span>{d.name}</span><Status value={d.status}/></button>;
   }
-  return <main className="page"><Heading title="현황판" week={week}/>
+  return <main className="page"><Heading title="현황판" week={week} picker={picker}/>{release}
     <div className="board"><aside aria-label="조직별 현황"><h2>조직별 현황</h2>
       {board.offices.map(o=><section className="org-group" key={o.organisationId}><h3>{o.name}<Status value={o.status}/></h3>
         {o.departmentIds.map(unitRow)}</section>)}
@@ -91,7 +91,7 @@ export function Dashboard({board,week,units,person,place,refresh}:{board:Dashboa
           <h3>처 섹션 제출본</h3>
           {dept.items.filter(i=>i.changed).map(i=><p className="change-note" key={i.id}>변경 항목 · {plainText(items.find(it=>it.id===i.id)!.title)}</p>)}
           <Decision key={`${dept.departmentId}:${stage?.id}:${sectionReview.submittedAt}`} path={`review-stages/${stage?.id}/sections/${dept.departmentId}`}
-            actions={sectionReview.actions} items={items} done={done}/>
+            actions={sectionReview.actions} items={items} done={done} weekId={week.id}/>
           <Preview dept={section} week={week}/>
         </>: <div className="review-list">{categories.map(c=><section key={c}><h3>{names[c]}</h3>
           {source.items[c].length===0 && <p>등록된 항목이 없습니다.</p>}

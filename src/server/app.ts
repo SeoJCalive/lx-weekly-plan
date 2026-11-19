@@ -4,6 +4,7 @@ import { categories, type WorkCategory, type WorkItem } from "../shared/weekly-p
 import { organisations, people, personColumns, readPlan } from "./database";
 import { generateHwpx } from "./hwpx";
 import { createReview } from "./review";
+import { createPublishing } from "./publishing";
 import { ApiFailure, object, saveInput, text } from "./validation";
 
 export const lockIdleMs = 90_000;
@@ -23,6 +24,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
   now?: () => number;
 }) {
   const review = createReview(db, now);
+  const publishing = createPublishing(db, templateBytes, now);
   function currentPerson(request: Request): Person | null {
     const token = /(?:^|;\s*)lx_session=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
     if (!token) return null;
@@ -33,8 +35,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
   function itemRow(id: string): ItemRow {
     const row = db.query<ItemRow, [string]>(`SELECT i.id, s.department_id AS departmentId, i.category,
       i.content_json, i.status, i.creator_id AS creatorId, i.assignee_mode AS assigneeMode
-      FROM items i JOIN sections s ON s.id = i.section_id JOIN weeks w ON w.id = s.week_id
-      WHERE i.id = ? AND w.is_current = 1`).get(id);
+      FROM items i JOIN sections s ON s.id = i.section_id WHERE i.id = ?`).get(id);
     if (!row) throw new ApiFailure(404, "업무 항목을 찾을 수 없습니다.");
     return row;
   }
@@ -92,7 +93,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
 
   return async function fetch(request: Request): Promise<Response> {
     try {
-      const path = new URL(request.url).pathname, method = request.method;
+      const url = new URL(request.url), path = url.pathname, method = request.method;
       if (path === "/api/accounts" && method === "GET") return json(people(db));
       if (path === "/api/organisations" && method === "GET") return json(organisations(db));
       if (path === "/api/session" && method === "POST") {
@@ -132,11 +133,32 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         })();
         return new Response(null, { status: 204, headers: { "Set-Cookie": cookie("", true) } });
       }
-      if (path === "/api/dashboard" && method === "GET") return json(review.dashboard(person));
-      if (path === "/api/todos" && method === "GET") return json(review.todos(person));
+      if (path === "/api/weeks" && method === "GET") return json(publishing.weeks());
+      if (path === "/api/board" && method === "GET") return json(publishing.posts());
+      const postMatch = /^\/api\/board\/([1-9]\d*)(\/hwpx)?$/.exec(path);
+      if (postMatch && method === "GET") {
+        const id = Number(postMatch[1]);
+        if (!postMatch[2]) return json(publishing.post(id));
+        return new Response(new Uint8Array(publishing.download(id)), { headers: {
+          "Content-Type": "application/hwp+zip",
+          "Content-Disposition": `attachment; filename="weekly-plan-post-${id}.hwpx"`,
+        } });
+      }
+      const publishMatch = /^\/api\/weeks\/([1-9]\d*)\/(publish|open-next)$/.exec(path);
+      if (publishMatch && method === "POST") {
+        const id = Number(publishMatch[1]);
+        return publishMatch[2] === "publish" ? json(publishing.publish(id, person), 201) :
+          json(publishing.openNext(id, person));
+      }
+      const selectedId = url.searchParams.get("weekId");
+      if (selectedId !== null && !/^[1-9]\d*$/.test(selectedId))
+        throw new ApiFailure(400, "주차 ID가 올바르지 않습니다.");
+      const week = publishing.week(selectedId === null ? undefined : Number(selectedId));
+      const weekReview = createReview(db, now, week.id);
+      if (path === "/api/dashboard" && method === "GET") return json(weekReview.dashboard(person));
+      if (path === "/api/todos" && method === "GET") return json(weekReview.todos(person));
       if (path === "/api/week" && method === "GET") {
-        const plan = readPlan(db);
-        const week = db.query<{ id: number }, []>("SELECT id FROM weeks WHERE is_current = 1").get()!;
+        const plan = readPlan(db, week.id);
         const result: WeekView = {
           ...plan, id: week.id,
           departments: plan.departments.map((department) => ({
@@ -149,7 +171,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         return json(result);
       }
       if (path === "/api/week/hwpx" && method === "GET") return new Response(
-        new Uint8Array(generateHwpx(readPlan(db), templateBytes)),
+        new Uint8Array(generateHwpx(readPlan(db, week.id), templateBytes)),
         { headers: {
           "Content-Type": "application/hwp+zip",
           "Content-Disposition": "attachment; filename=\"weekly-plan.hwpx\"",
@@ -164,8 +186,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         const id = crypto.randomUUID();
         const item: WorkItem = { id, title: [], content: [], notes: [], tables: [], assignee: "" };
         db.transaction(() => {
-          const section = db.query<{ id: number }, [string]>(`SELECT s.id FROM sections s
-            JOIN weeks w ON w.id = s.week_id WHERE s.department_id = ? AND w.is_current = 1`).get(departmentId)!;
+          const section = db.query<{ id: number }, [string, number]>(`SELECT s.id FROM sections s
+            WHERE s.department_id = ? AND s.week_id = ?`).get(departmentId, week.id)!;
           db.query(`INSERT INTO items (id, section_id, category, position, content_json, status, creator_id)
             SELECT ?, ?, ?, COALESCE(MAX(position), -1) + 1, ?, '미작성', ? FROM items
             WHERE section_id = ? AND category = ?`).run(
@@ -180,9 +202,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         const departmentId = labelMatch[1], input = await body(request);
         if (person.departmentId !== departmentId) throw new ApiFailure(403, "본인 소속 처의 소제목만 바꿀 수 있습니다.");
         const thisWeek = text(input.thisWeek, "오른쪽 소제목");
-        const section = db.query<{ id: number; labels_json: string }, [string]>(`SELECT s.id, s.labels_json
-          FROM sections s JOIN weeks w ON w.id = s.week_id
-          WHERE s.department_id = ? AND w.is_current = 1`).get(departmentId)!;
+        const section = db.query<{ id: number; labels_json: string }, [string, number]>(`SELECT s.id, s.labels_json
+          FROM sections s WHERE s.department_id = ? AND s.week_id = ?`).get(departmentId, week.id)!;
         const labels = { ...JSON.parse(section.labels_json), thisWeek };
         db.transaction(() => {
           if (JSON.stringify(labels) !== section.labels_json) review.invalidate(section.id);
@@ -198,14 +219,14 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       }
       const stageMatch = /^\/api\/review-stages\/([1-9]\d*)\/submit$/.exec(path);
       if (stageMatch && method === "POST") {
-        review.submit(Number(stageMatch[1]), person);
-        return json(review.dashboard(person));
+        weekReview.submit(Number(stageMatch[1]), person);
+        return json(weekReview.dashboard(person));
       }
       const sectionMatch = /^\/api\/review-stages\/([1-9]\d*)\/sections\/([^/]+)\/(approve|return)$/.exec(path);
       if (sectionMatch && method === "POST") {
-        review.decideSection(Number(sectionMatch[1]), sectionMatch[2], sectionMatch[3] as "approve" | "return",
+        weekReview.decideSection(Number(sectionMatch[1]), sectionMatch[2], sectionMatch[3] as "approve" | "return",
           person, sectionMatch[3] === "return" ? await body(request) : {});
-        return json(review.dashboard(person));
+        return json(weekReview.dashboard(person));
       }
       const match = /^\/api\/items\/([^/]+)(?:\/(assignment|lock))?$/.exec(path);
       if (match) {
@@ -256,7 +277,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
             const assigneeMode = input.assignee === undefined ? row.assigneeMode :
               input.assignee === null ? "automatic" : "manual";
             const item: WorkItem = {
-              id, title: input.title, content: input.content, notes: input.notes, tables: input.tables,
+              id, ...(previous.templateItemId ? { templateItemId: previous.templateItemId } : {}),
+              title: input.title, content: input.content, notes: input.notes, tables: input.tables,
               assignee: input.assignee === undefined ? previous.assignee :
                 input.assignee === null ? automaticAssignee(id) : input.assignee,
             };

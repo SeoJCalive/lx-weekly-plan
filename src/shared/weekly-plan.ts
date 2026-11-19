@@ -35,6 +35,8 @@ export interface WorkTable {
 export interface WorkItem {
   /** Stable identity also lets the exporter reuse the source item's typography. */
   id: string;
+  /** Source item in the fixed form, retained when a week copies an item. */
+  templateItemId?: string;
   title: RichText;
   /** Lines retain their visible bullet/label and spacing. Blank lines are significant. */
   content: RichText[];

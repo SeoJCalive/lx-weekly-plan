@@ -3,7 +3,7 @@ import type {
   DashboardView, ItemAction, ItemReview, ItemStatus, Person, ReviewStage, SectionReview, TodoView,
 } from "../shared/api";
 import type { WorkCategory, WorkItem } from "../shared/weekly-plan";
-import { organisations } from "./database";
+import { currentWeekId, organisations } from "./database";
 import { ApiFailure, text } from "./validation";
 
 interface ReviewItem {
@@ -29,14 +29,14 @@ interface SectionRow {
   versions_json: string;
 }
 
-export function createReview(db: Database, now: () => number) {
+export function createReview(db: Database, now: () => number, weekId?: number) {
   const stages = (): ReviewStage[] => db.query<ReviewStage, []>(`SELECT id, organisation_id AS organisationId,
     reviewer_id AS reviewerId, parent_stage_id AS parentStageId, review_unit AS reviewUnit
     FROM review_stages ORDER BY position`).all();
   function sections(): Section[] {
-    return db.query<Section, []>(`SELECT s.id, s.department_id AS departmentId, o.name, o.parent_id AS parentId
+    return db.query<Section, [number]>(`SELECT s.id, s.department_id AS departmentId, o.name, o.parent_id AS parentId
       FROM sections s JOIN weeks w ON w.id = s.week_id JOIN organisations o ON o.id = s.department_id
-      WHERE w.is_current = 1 ORDER BY s.position`).all();
+      WHERE w.id = ? ORDER BY s.position`).all(weekId ?? currentWeekId(db));
   }
   function items(sectionId: number): ReviewItem[] {
     return db.query<ReviewItem, [number]>(`SELECT i.id, i.section_id AS sectionId, s.department_id AS departmentId,
@@ -46,8 +46,7 @@ export function createReview(db: Database, now: () => number) {
   function item(id: string): ReviewItem {
     const row = db.query<ReviewItem, [string]>(`SELECT i.id, i.section_id AS sectionId,
       s.department_id AS departmentId, i.category, i.status, i.content_json FROM items i
-      JOIN sections s ON s.id = i.section_id JOIN weeks w ON w.id = s.week_id
-      WHERE i.id = ? AND w.is_current = 1`).get(id);
+      JOIN sections s ON s.id = i.section_id WHERE i.id = ?`).get(id);
     if (!row) throw new ApiFailure(404, "업무 항목을 찾을 수 없습니다.");
     return row;
   }
@@ -274,7 +273,7 @@ export function createReview(db: Database, now: () => number) {
       };
     });
     return {
-      weekId: db.query<{ id: number }, []>("SELECT id FROM weeks WHERE is_current = 1").get()!.id,
+      weekId: weekId ?? currentWeekId(db),
       revision: db.query<{ revision: number }, []>("SELECT revision FROM change_revision WHERE id = 1").get()!.revision,
       pollIntervalMs: 1000,
       stages: allStages.map((stage) => ({ ...stage, actions: owns(stage, person) && canSubmit(stage) ? ["submit"] : [] })),

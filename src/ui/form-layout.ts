@@ -1,7 +1,7 @@
 import { readTemplate, tableCells } from "../server/template";
 import { child, children, descendants } from "../server/xml";
 
-/** Bun macro: only dimensions enter the browser bundle, never the template or seed. */
+/** Only form geometry and the four fixed cover marks enter the browser bundle. */
 export async function formLayout() {
   const template = readTemplate(new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer()));
   const byItem: Record<string, number[]> = {}, bySection: Record<string, number[][]> = {};
@@ -24,5 +24,7 @@ export async function formLayout() {
         Number(children(table,"hp:pos")[0]?.attributes.vertOffset ?? 0),gap];
     });
   }
-  return { byItem, bySection };
+  const cover=["image1.JPG","image2.JPG","image3.png","image4.png"].map(file=>
+    `data:image/${file.endsWith("png")?"png":"jpeg"};base64,${Buffer.from(template.entries[`BinData/${file}`]).toString("base64")}`);
+  return { byItem, bySection, cover };
 }
