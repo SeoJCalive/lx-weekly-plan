@@ -59,6 +59,26 @@ label input,label select,label textarea {font-weight:400}
 .editor .section-head {margin:0}
 .edit-tools {padding:var(--s2) 0 var(--s4);margin-bottom:var(--s4);border-bottom:1px solid var(--line)}
 .fields {display:grid;gap:var(--s4)}
+.fields>* {min-width:0}
+.emphasis-field,.table-tools {display:grid;gap:var(--s2)}
+.field-heading {display:flex;align-items:center;justify-content:space-between;gap:var(--s2);flex-wrap:wrap}
+.mark-tools {display:flex;align-items:center;gap:var(--s1)}
+.mark-tools button,.table-field button {min-height:var(--s8);padding:var(--s1) var(--s2)}
+.emphasis-field:not(:focus-within) .mark-tools {visibility:hidden}
+.table-field {margin:0;padding:0;border:0}
+.table-field legend {font-size:var(--small);font-weight:600;padding:0;margin:0 0 var(--s2)}
+.table-edit {display:grid;gap:var(--s2);padding:var(--s3) 0 var(--s4);border-top:1px solid var(--line)}
+.table-edit small {font:400 var(--small) var(--sans);color:var(--mute)}
+.grid-scroll {overflow:auto}
+.grid-scroll table {width:100%;border-collapse:collapse;font-size:var(--small)}
+.grid-scroll th,.grid-scroll td {border:1px solid var(--edge)}
+.grid-scroll th {background:var(--soft);font-size:var(--caption);padding:var(--s1)}
+.grid-scroll textarea {display:block;min-width:calc(var(--s12) + var(--s2));min-height:var(--s8);padding:var(--s1);border:0;field-sizing:content;resize:vertical}
+.grid-scroll [data-selected=true] textarea,.table-tools [aria-pressed=true] {background:var(--wash)}
+.grid-scroll textarea:focus-visible {outline-offset:-2px}
+.table-tools {font-size:var(--small)}
+.table-tools label {display:flex;align-items:center;gap:var(--s2)}
+.table-tools input {width:6em;padding:var(--s1)}
 .save-line {padding:var(--s3) 0;background:var(--paper);border-top:1px solid var(--line)}
 .actions {display:flex;align-items:center;flex-wrap:wrap;gap:var(--s2)}
 .review-message {display:grid;gap:var(--s1);white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:var(--s4);padding:var(--s3);background:var(--soft);font-size:var(--small);color:var(--ink)}
@@ -153,18 +173,17 @@ label input,label select,label textarea {font-weight:400}
 .outer .doc-sub th {text-align:left;background:var(--doc-paper);font:700 11pt var(--sans);border-bottom:1px solid var(--doc-line)}
 .doc-body {padding:3pt 4pt;vertical-align:top}
 .doc-title {font-size:12pt;font-weight:700;margin-bottom:3pt}
-.doc-title [data-color=blue] {vertical-align:super;font-size:.68em}
+.doc-title sup {font-size:.68em}
 .form-paper [data-color=blue] {color:var(--doc-blue)}
 .form-paper [data-color=red] {color:var(--doc-red)}
 .doc-content,.doc-note {min-height:1em;margin-top:3pt}
 .doc-note {font:9pt/1.48 var(--sans)}
 .doc-assignee {padding:1pt 3pt;vertical-align:middle;font-size:10.5pt}
 .ongoing>thead th {background:var(--doc-pale);font:700 12pt var(--sans)}
-.subtables {display:flex;align-items:flex-start;justify-content:space-between;gap:3pt;margin:2pt 1pt}
-.nested {max-width:100%;font:8.5pt/1.15 var(--sans)}
+.subtables {display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:3pt;margin:2pt 1pt}
+.nested {max-width:100%;font-family:var(--sans);line-height:1.15}
 .nested caption {text-align:right;font:8pt var(--sans)}
 .nested td {border:.5pt solid var(--doc-line);padding:0;vertical-align:middle}
-.nested .shaded {background:var(--doc-cell)}
 @media(max-width:1150px) {
   .mast {gap:var(--s4)} .mast nav :is(a,button) {padding-inline:var(--s2)}
   .identity {gap:var(--s2)} .input-pane {padding-right:var(--s4)} .preview-pane {padding-inline:var(--s4)}

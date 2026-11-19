@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { editLines, editText, marked } from "./text";
+import { editLines, editText, emphasize, marked } from "./text";
 import type { RichText } from "../shared/weekly-plan";
 
 test("editing beside an emphasized word preserves the untouched runs", () => {
@@ -13,4 +13,11 @@ test("inserting a line does not flatten or move formatting onto the following li
   expect(edited[2]).toBe(old[1]);
   expect(marked(edited,old,false)).toEqual([old[0],[{text:" ○ "},{text:"신규",bold:false}],old[1]]);
   expect(marked([[{text:"첫 줄"}],[{text:"둘째 줄"}]],[],true).map(line=>line[0].text)).toEqual([" * "," ** "]);
+});
+test("a textarea selection spans lines without replacing neighbouring emphasis",()=>{
+  const lines:RichText[]=[[{text:"앞뒤",bold:true}],[{text:"파랑",color:"blue"}]];
+  const result=emphasize(lines,1,4,"red");
+  expect(result).toEqual([[{text:"앞",bold:true},{text:"뒤",bold:true,color:"red"}],
+    [{text:"파",color:"red"},{text:"랑",color:"blue"}]]);
+  expect(emphasize(result,1,2,"clear")[0][1]).toEqual({text:"뒤",bold:false});
 });

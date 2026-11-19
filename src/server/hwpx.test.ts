@@ -89,6 +89,20 @@ describe("weekly plan hwpx", () => {
     expect(xml).toContain("=SUM(A3:F3)??%g,;;128");
     expect(xml).toContain("<hp:t>128</hp:t>");
   });
+  test("editing elsewhere in a title keeps the template's superscript, not on newly blue text",()=>{
+    const data=structuredClone(seed),item=data.departments[0].items.lastWeek[1];
+    item.title.unshift({text:"추가 ",color:"blue",bold:true});
+    const t=readTemplate(generate(data)),p=paragraphs(t.items.get(item.id)!.body)[0];
+    const runs=children(p,"hp:run"),last=runs.at(-1)!;
+    expect(children(t.charProperties.get(last.attributes.charPrIDRef)!,"hh:supscript")).toHaveLength(1);
+    expect(children(t.charProperties.get(runs.find(r=>serialize(r).includes("추가"))!.attributes.charPrIDRef)!,"hh:supscript")).toHaveLength(0);
+  });
+  test("appending a third table keeps the original pair in one inline paragraph",()=>{
+    const data=structuredClone(seed),it=data.departments[2].items.ongoing[0];
+    it.tables.push({...structuredClone(it.tables[0]),id:"added"});
+    const xml=readTemplate(generate(data));
+    expect(paragraphs(xml.items.get(it.id)!.body).map(p=>descendants(p,"hp:tbl").length).filter(Boolean)).toEqual([2,1]);
+  });
   test("changed items carry original centered slack as margins while Hancom sizes the content", () => {
     const original = readTemplate(template);
     const item = seed.departments[1].items.ongoing[2];
@@ -105,7 +119,7 @@ describe("weekly plan hwpx", () => {
         left: "0", right: "0", top: "990", bottom: "991",
       });
       expect(child(cell, "hp:subList").attributes.vertAlign).toBe("TOP");
-      expect(result.attributes.pageBreak).toBe("TABLE");
+      expect(result.attributes.pageBreak).toBe(outer.attributes.pageBreak);
       expect(descendants(cell, "hp:linesegarray")).toHaveLength(0);
       expect(serialize(tableCells(result)[1])).toBe(serialize(tableCells(outer)[1]));
       const following = descendants(doc, "hp:tbl").find((t) =>
@@ -188,7 +202,7 @@ describe("weekly plan hwpx", () => {
       expect(child(body, "hp:cellSz").attributes.height).toBe("0");
       expect(child(body, "hp:cellMargin").attributes.top).toBe("990");
       expect(child(body, "hp:cellMargin").attributes.bottom).toBe("991");
-      expect(outer.attributes.pageBreak).toBe("TABLE");
+      expect(outer.attributes.pageBreak).toBe(readTemplate(template).departments[1].ongoing.attributes.pageBreak);
     }
     const data = structuredClone(seed);
     const items = data.departments[1].items.ongoing;
@@ -210,6 +224,18 @@ describe("weekly plan hwpx", () => {
       left: "138", right: "138", top: "566", bottom: "3142",
     });
     expect(descendants(newBody, "hp:linesegarray")).toHaveLength(0);
+  });
+  test("every outer table retains its template page-break mode after growth or shrinkage", () => {
+    const original = readTemplate(template);
+    for (const grow of [true, false]) {
+      const data = structuredClone(seed);
+      for (const department of data.departments) for (const items of Object.values(department.items))
+        items[0].content = grow ? Array.from({ length: 43 }, (_, i) => [{ text: ` ○ 내용 ${i + 1}` }]) : [];
+      const result = readTemplate(generate(data));
+      for (const [i, department] of result.departments.entries())
+        for (const key of ["main", "ongoing"] as const)
+          expect(department[key].attributes.pageBreak).toBe(original.departments[i][key].attributes.pageBreak);
+    }
   });
   test("a table can be added to a narrow column and existing tables can be removed", () => {
     const data = structuredClone(seed);

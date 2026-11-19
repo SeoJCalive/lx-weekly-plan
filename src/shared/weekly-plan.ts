@@ -16,6 +16,8 @@ export interface SumFormula {
   to: CellAddress;
 }
 export interface TableCell extends CellAddress {
+  /** Original cell coordinate, retained when table editing moves or copies a cell. */
+  styleFrom?: CellAddress;
   rowSpan: number;
   colSpan: number;
   alignment: Alignment;

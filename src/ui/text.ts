@@ -1,4 +1,22 @@
-import { plainText, type RichText } from "../shared/weekly-plan";
+import { plainText, type RichText, type TextColor } from "../shared/weekly-plan";
+
+export type Emphasis = "bold" | TextColor | "clear";
+export function emphasize(lines: RichText[], start: number, end: number, mark: Emphasis): RichText[] {
+  let offset=0;
+  return lines.map(line=>{
+    const result=line.flatMap(span=>{
+      const {text}=span, a=Math.max(0,start-offset), b=Math.min(text.length,end-offset);
+      offset+=text.length;
+      if (a>=b) return [span];
+      const part=text.slice(a,b);
+      return [...(a ? [{...span,text:text.slice(0,a)}] : []),
+        mark==="clear" ? {text:part,bold:false} : {...span,text:part,...(mark==="bold" ? {bold:true} : {color:mark})},
+        ...(b<text.length ? [{...span,text:text.slice(b)}] : [])];
+    });
+    offset++; // A textarea represents the paragraph boundary with one newline.
+    return result;
+  });
+}
 
 /** Keep the original spans outside the changed range, including on either side of a paste. */
 export function editText(old: RichText, next: string, bold = false): RichText {

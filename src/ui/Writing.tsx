@@ -2,8 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DepartmentView, ItemView, Organisation, Person, WeekView } from "../shared/api";
 import { categories, plainText, type WorkCategory } from "../shared/weekly-plan";
 import { api } from "./api";
-import { Preview } from "./Preview";
-import { editLines, editText, linesText, marked } from "./text";
+import { Preview, tableGeometry } from "./Preview";
+import { marked } from "./text";
+import { EmphasisField } from "./EmphasisField";
+import { TableEditor } from "./TableEditor";
+import { newTable } from "./table";
 import { names, Status } from "./Workflow";
 
 const itemPath=(it:ItemView)=>`items/${encodeURIComponent(it.id)}`;
@@ -33,7 +36,7 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
   const [online,setOnline]=useState(navigator.onLine);
   const [,setLastContact]=useState(Date.now());
   const dirty=!!draft && draft!==item, labelDirty=label!==dept.labels.thisWeek;
-  const editable=!!item?.lock && item.lock.personId===person.id && item.lock.expiresAt>Date.now() && online;
+  const editable=!!item?.canEdit && !!item.lock && item.lock.personId===person.id && item.lock.expiresAt>Date.now() && online;
   const other=!!item?.lock && item.lock.personId!==person.id;
   function replace(it:ItemView) {
     setDept(d=>({...d,items:{...d.items,[it.category]:d.items[it.category].some(x=>x.id===it.id)
@@ -122,6 +125,14 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
     });
   }
   const rendered=draft && item ? {...draft,content:marked(draft.content,item.content,false),notes:marked(draft.notes,item.notes,true)} : undefined;
+  useEffect(()=>{
+    const pane=document.querySelector<HTMLElement>(".workspace .preview-pane");
+    const td=pane?.querySelector<HTMLElement>(`[data-item="${CSS.escape(item?.id??"")}"]`);
+    if(pane && td && pane.scrollHeight>pane.clientHeight) {
+      const delta=td.getBoundingClientRect().top-pane.getBoundingClientRect().top;
+      if(delta<0 || delta+td.offsetHeight>pane.clientHeight)pane.scrollTop+=delta-pane.clientHeight/4;
+    }
+  },[item?.id]);
   async function save() {
     if(!item || !rendered)return;
     const {title,content,notes,tables,assignee}=rendered;
@@ -166,13 +177,21 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
           })}>편집 시작</button> : <button className={mine?"":"primary"} disabled={busy || !online} onClick={assign}>{mine?"내 담당 해제":"내게 할당하고 편집"}</button>)}</div>
         {message && message.versionId===item.review.version?.id && <p className="review-message"><b>수정 요청 사유</b>{message.message}</p>}
         <form className="fields" onSubmit={e=>{e.preventDefault();if(editable && dirty)void action(save);}}>
-          <label>제목<input id="item-title" value={plainText(draft.title)} readOnly={!editable || busy}
-            onChange={e=>setDraft({...draft,title:editText(draft.title,e.target.value,true)})}/></label>
-          <label>내용<textarea rows={3} value={linesText(draft.content)} readOnly={!editable || busy}
-            onChange={e=>setDraft({...draft,content:editLines(draft.content,e.target.value)})}/></label>
-          <label>부가 설명<textarea rows={2} value={linesText(draft.notes)} readOnly={!editable || busy}
-            onChange={e=>setDraft({...draft,notes:editLines(draft.notes,e.target.value)})}/></label>
-          {!!draft.tables.length && <p className="table-note">표 {draft.tables.length}개 · 양식 미리보기에서 확인</p>}
+          <EmphasisField key={`${draft.id}/title`} id="item-title" label="제목" lines={[draft.title]} readOnly={!editable || busy}
+            change={([title])=>setDraft({...draft,title})}/>
+          <EmphasisField key={`${draft.id}/content`} id="item-content" label="내용" rows={3} lines={draft.content} readOnly={!editable || busy}
+            change={content=>setDraft({...draft,content})}/>
+          <EmphasisField key={`${draft.id}/notes`} id="item-notes" label="부가 설명" rows={2} lines={draft.notes} readOnly={!editable || busy}
+            change={notes=>setDraft({...draft,notes})}/>
+          {editable ? <fieldset className="table-field" disabled={busy}><legend>업무 표</legend>
+            {draft.tables.map((table,i)=><TableEditor key={table.id} table={table} index={i+1}
+              change={next=>setDraft({...draft,tables:draft.tables.map(t=>t===table?next:t)})}
+              remove={()=>setDraft({...draft,tables:draft.tables.filter(t=>t!==table)})}/>)}
+            <button type="button" onClick={()=>{
+              const {width,height}=tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`);
+              setDraft({...draft,tables:[...draft.tables,newTable(cat==="ongoing"?3:2,cat==="ongoing"?4:3,width,height)]});
+            }}>+ 표 추가</button></fieldset> :
+            !!draft.tables.length && <p className="table-note">표 {draft.tables.length}개 · 양식 미리보기에서 확인</p>}
           <label>업무담당자<input value={draft.assignee} readOnly={!editable || busy}
             onChange={e=>setDraft({...draft,assignee:e.target.value})}/></label>
           {(editable || feedback || item.actions.includes("request-review")) && <div className="save-line"><span role="status">{dirty?"저장하지 않은 변경":feedback || "저장된 내용"}</span>

@@ -1,12 +1,20 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
 import { formLayout } from "./form-layout" with {type:"macro"};
+import { formRuns } from "../shared/form-runs";
+import { tableCellStyle } from "../shared/table-style";
 
 const layout = await formLayout();
+export const tableGeometry=(id:string,fallback:string)=>({width:(layout.byItem[id]??layout.byItem[fallback])[2],height:layout.rowHeight});
 const px = (units: number) => units/75;
 export function Runs({line}:{line:RichText}) {
   return <>{line.map((s,i) => <span key={i} data-color={s.color}
     style={{fontWeight:s.bold === undefined ? undefined : s.bold ? 700 : 400}}>{s.text}</span>)}</>;
+}
+function Title({item,number}:{item:WorkItem;number:number}){
+  const line=[{text:`${number}. `},...item.title],source=layout.titleStyles[item.templateItemId??item.id];
+  return <div className="doc-title">{source?formRuns(line,source,false).map(({span,style},i)=>
+    style?<sup key={i}><Runs line={[span]}/></sup>:<Runs key={i} line={[span]}/>):<Runs line={line}/>}</div>;
 }
 export function Nested({table}:{table:WorkTable}) {
   const total = table.columnWidths.reduce((a,b)=>a+b);
@@ -14,15 +22,18 @@ export function Nested({table}:{table:WorkTable}) {
     {!!table.caption.length && <caption>{table.caption.map((l,i)=><div key={i}><Runs line={l}/></div>)}</caption>}
     <colgroup>{table.columnWidths.map((n,i)=><col key={i} style={{width:`${n/total*100}%`}}/>)}</colgroup>
     <tbody>{Array.from({length:table.rows},(_,r)=><tr key={r} style={{height:px(table.rowHeights[r])}}>
-      {table.cells.filter(c=>c.row===r).sort((a,b)=>a.column-b.column).map(c=><td key={c.column}
-        rowSpan={c.rowSpan} colSpan={c.colSpan} style={{textAlign:c.alignment}} className={r<table.rows-1?"shaded":""}>
-        {c.formula ? <b>{sumValue(table,c.formula)}</b> : c.paragraphs.map((l,i)=><div key={i}><Runs line={l}/></div>)}
-      </td>)}</tr>)}</tbody></table>;
+      {table.cells.filter(c=>c.row===r).sort((a,b)=>a.column-b.column).map(c=>{
+        const style=tableCellStyle(table,c,layout.tableStyles);
+        return <td key={c.column} rowSpan={c.rowSpan} colSpan={c.colSpan}
+          style={{textAlign:c.alignment,background:style.background,fontSize:`${style.fontSize}pt`,fontWeight:style.bold?700:400}}>
+          {c.formula ? sumValue(table,c.formula) : c.paragraphs.map((l,i)=><div key={i}><Runs line={l}/></div>)}
+        </td>;
+      })}</tr>)}</tbody></table>;
 }
 function rows(groups: (WorkItem|undefined)[][], ongoing=false) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
-    <tr>{pair.map((item,j)=><td className="doc-body" key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
-      {item && <><div className="doc-title">{i+1}. <Runs line={item.title}/></div>
+    <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
+      {item && <><Title item={item} number={i+1}/>
         {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
         {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
         {!!item.tables.length && <div className="subtables">{item.tables.map(t=><Nested key={t.id} table={t}/>)}</div>}

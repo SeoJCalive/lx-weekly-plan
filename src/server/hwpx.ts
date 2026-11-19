@@ -1,4 +1,8 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
+import { validateTable } from "../shared/table-validation";
+import { formRuns } from "../shared/form-runs";
+import { cellOrigin, tableCellStyle } from "../shared/table-style";
+import { templateTableStyles } from "./table-style";
 import { sumValue, type RichText, type TableCell, type WeeklyPlan, type WorkItem, type WorkTable } from "../shared/weekly-plan";
 import { paragraphs, paragraphText, readTemplate, tableCells, type ItemTemplate } from "./template";
 import { child, children, clone, descendants, element, escapeXml, serialize, setAttribute, setText, textContent, type XmlNode } from "./xml";
@@ -14,6 +18,7 @@ const address = (cell: { row: number; column: number }): string => `${columnName
 /** The template is read on each call; neither caller data nor template bytes are mutated. */
 export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8Array {
   const t = readTemplate(templateBytes);
+  const tableStyles = templateTableStyles(t);
   let nextId = Math.max(...descendants(t.section, "hp:p").map((p) => Number(p.attributes.id)),
     ...descendants(t.section, "hp:tbl").map((p) => Number(p.attributes.id))) + 1;
   const charCache = new Map<string, string>();
@@ -53,10 +58,12 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     paraCache.set(key, id);
     return id;
   }
-  function renderParagraph(source: XmlNode, text: RichText, baseId: string): XmlNode {
+  function renderParagraph(source: XmlNode, text: RichText, baseId: string, keepTypography=false): XmlNode {
     const p = clone(source);
-    p.children = text.map((span) =>
-      element(`<hp:run charPrIDRef="${charStyle(baseId, span)}"><hp:t>${escapeXml(span.text)}</hp:t></hp:run>`));
+    const runs=keepTypography?formRuns(text,children(source,"hp:run").map(r=>({
+      text:children(r,"hp:t").map(textContent).join(""),style:r.attributes.charPrIDRef})),baseId):text.map(span=>({span,style:baseId}));
+    p.children = runs.map(({span,style}) =>
+      element(`<hp:run charPrIDRef="${charStyle(style, span)}"><hp:t>${escapeXml(span.text)}</hp:t></hp:run>`));
     if (!p.children.length) p.children.push(element(`<hp:run charPrIDRef="${baseId}"><hp:t/></hp:run>`));
     return p;
   }
@@ -88,29 +95,6 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       if (id) setAttribute(end, "beginIDRef", id);
     }
   }
-  function validateTable(table: WorkTable): void {
-    if (table.rows < 1 || table.columns < 1 || table.columnWidths.length !== table.columns ||
-      table.rowHeights.length !== table.rows || table.columnWidths.some((w) => !Number.isFinite(w) || w <= 0) ||
-      table.rowHeights.some((h) => !Number.isFinite(h) || h < 0)) throw new Error("Invalid table dimensions");
-    const occupied = new Set<string>();
-    for (const c of table.cells) {
-      if (![c.row, c.column, c.rowSpan, c.colSpan].every(Number.isInteger) || c.row < 0 || c.column < 0 ||
-        c.rowSpan < 1 || c.colSpan < 1 || c.row + c.rowSpan > table.rows || c.column + c.colSpan > table.columns)
-        throw new Error("Table cell outside table bounds");
-      for (let r = c.row; r < c.row + c.rowSpan; r++) for (let col = c.column; col < c.column + c.colSpan; col++) {
-        const key = `${r}/${col}`;
-        if (occupied.has(key)) throw new Error("Overlapping table cells");
-        occupied.add(key);
-      }
-      if (c.formula && (c.formula.from.row < 0 || c.formula.from.column < 0 ||
-        c.formula.to.row >= table.rows || c.formula.to.column >= table.columns ||
-        c.formula.from.row > c.formula.to.row || c.formula.from.column > c.formula.to.column ||
-        (c.row >= c.formula.from.row && c.row <= c.formula.to.row &&
-          c.column >= c.formula.from.column && c.column <= c.formula.to.column)))
-        throw new Error("Invalid SUM range");
-    }
-    if (occupied.size !== table.rows * table.columns) throw new Error("Table has uncovered cells");
-  }
   function renderTable(table: WorkTable, source: XmlNode, baseline: WorkTable | undefined, cellWidth: number): XmlNode {
     validateTable(table);
     const margin = child(source, "hp:outMargin").attributes;
@@ -131,10 +115,13 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     const oldCells = new Map(baseline?.cells.map((c) => [`${c.row}/${c.column}`, c]));
     const rows = Array.from({ length: table.rows }, () => element("<hp:tr></hp:tr>"));
     for (const cell of table.cells) {
-      const key = `${cell.row}/${cell.column}`;
+      const origin = cellOrigin(cell), key = `${origin.row}/${origin.column}`;
       const old = oldCells.get(key);
-      const original = sourceCells.get(key) ?? originals[originals.length - 1];
+      const style = tableCellStyle(table, cell, tableStyles);
+      const original = baseline ? sourceCells.get(key) ?? originals.find(c =>
+        c.attributes.borderFillIDRef === style.borderFillId) ?? originals[0] : originals[0];
       const c = clone(original);
+      setAttribute(c, "borderFillIDRef", style.borderFillId);
       setAttribute(child(c, "hp:cellAddr"), "rowAddr", cell.row);
       setAttribute(child(c, "hp:cellAddr"), "colAddr", cell.column);
       setAttribute(child(c, "hp:cellSpan"), "rowSpan", cell.rowSpan);
@@ -147,11 +134,11 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         const p = sourcePs[i] ?? sourcePs[0];
         if (equal(line, old?.paragraphs[i]) && equal(cell.formula, old?.formula) &&
           (!cell.formula || !formulaChanged)) return clone(p);
-        return renderParagraph(p, line, children(p, "hp:run")[0].attributes.charPrIDRef);
+        return renderParagraph(p, line, style.charPrId);
       });
       if (cell.formula) {
         const value = String(sumValue(table, cell.formula));
-        const p = outputPs[0] ?? renderParagraph(sourcePs[0], [{ text: value }], "76");
+        const p = outputPs[0] ?? renderParagraph(sourcePs[0], [{ text: value }], style.charPrId);
         if (formulaChanged || !equal(cell.formula, old?.formula)) {
           const charId = children(p, "hp:run")[0].attributes.charPrIDRef;
           const fieldId = nextId++;
@@ -160,7 +147,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         }
         outputPs.splice(0, outputPs.length, p);
       }
-      if (!outputPs.length) outputPs.push(renderParagraph(sourcePs[0], [], "76"));
+      if (!outputPs.length) outputPs.push(renderParagraph(sourcePs[0], [], style.charPrId));
       for (const p of outputPs) setAttribute(p, "paraPrIDRef", aligned(p.attributes.paraPrIDRef, cell.alignment));
       child(c, "hp:subList").children = outputPs;
       rows[cell.row].children.push(c);
@@ -199,7 +186,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       first.children = first.children.map((c) => typeof c === "string" ? c.replace(/\d+/, String(number)) : c);
     } else {
       const prefix = /^\s*/.exec(paragraphText(sourcePs[0]))![0];
-      title = renderParagraph(sourcePs[0], [{ text: `${prefix}${number}. `, bold: true }, ...item.title], "29");
+      title = renderParagraph(sourcePs[0], [{ text: `${prefix}${number}. `, bold: true }, ...item.title], "29",!isNew);
     }
     const linePs = sourcePs.slice(1).filter((p) => !descendants(p, "hp:tbl").length);
     const contentPs = linePs.filter((p) => !/^\s*\*/.test(paragraphText(p)));
@@ -212,35 +199,30 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       [item.notes, old.notes, notePs, standardNote, "41"],
     ] as const) {
       lines.forEach((line, i) => output.push(equal(line, previous[i]) && templates[i]
-        ? clone(templates[i]) : renderParagraph(templates[i] ?? templates[0] ?? standard, line, charId)));
+        ? clone(templates[i]) : renderParagraph(templates[i] ?? templates[0] ?? standard, line, charId,!!templates[i] && !isNew)));
     }
     const tablePs = sourcePs.filter((p) => descendants(p, "hp:tbl").length);
-    if (item.tables.length) {
-      if (item.tables.length === old.tables.length && tablePs.length) {
-        let index = 0;
-        for (const p of tablePs) {
-          const q = clone(p);
-          for (const run of children(q, "hp:run")) {
-            run.children = run.children.map((c) => {
-              if (typeof c === "string" || c.name !== "hp:tbl") return c;
-              const model = item.tables[index], baseline = old.tables[index++];
-              return renderTable(model, c, baseline, Number(child(body, "hp:cellSz").attributes.width));
-            });
-          }
-          output.push(q);
-        }
-      } else {
-        const fallbackItem = [...t.items.values()].find((i) => i.data.tables.length)!;
-        const prototype = tablePs[0] ?? paragraphs(fallbackItem.body).find((p) => descendants(p, "hp:tbl").length)!;
-        for (const table of item.tables) {
-          const p = clone(prototype);
-          const sourceTable = t.tables.get(table.id) ?? descendants(prototype, "hp:tbl")[0];
-          const oldTable = [...t.items.values()].flatMap((i) => i.data.tables).find((a) => a.id === table.id);
-          const nested = renderTable(table, sourceTable, oldTable, Number(child(body, "hp:cellSz").attributes.width));
-          p.children = [element('<hp:run charPrIDRef="36"></hp:run>')];
-          child(p, "hp:run").children = [nested, element("<hp:t/>")];
-          output.push(p);
-        }
+    const width=Number(child(body,"hp:cellSz").attributes.width);
+    for(let index=0; index<item.tables.length;) {
+      // Keep an intact original group in its own paragraph, even when another table was appended.
+      const group=tablePs.find(p=>descendants(p,"hp:tbl").every((tbl,j)=>tbl.attributes.id===item.tables[index+j]?.id));
+      if(group) {
+        const p=clone(group);
+        for(const run of children(p,"hp:run"))run.children=run.children.map(c=>{
+          if(typeof c==="string" || c.name!=="hp:tbl")return c;
+          const model=item.tables[index++];
+          return renderTable(model,c,old.tables.find(t=>t.id===model.id),width);
+        });
+        output.push(p);
+      }else{
+        const model=item.tables[index++], baseline=old.tables.find(tbl=>tbl.id===model.id);
+        const fallback=[...t.items.values()].find(i=>i.data.tables.length)!;
+        const prototype=paragraphs(fallback.body).find(p=>descendants(p,"hp:tbl").length)!;
+        const p=clone(prototype), sourceTable=baseline?t.tables.get(baseline.id)!:descendants(prototype,"hp:tbl")[0];
+        const nested=renderTable(model,sourceTable,baseline,width);
+        p.children=[element('<hp:run charPrIDRef="36"></hp:run>')];
+        child(p,"hp:run").children=[nested,element("<hp:t/>")];
+        output.push(p);
       }
     }
     if (!descendants(sourcePs[sourcePs.length - 1], "hp:tbl").length)
@@ -327,7 +309,6 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         child(children(sourceRows[i], "hp:tc")[col], "hp:cellSz").attributes.height))) {
       setAttribute(child(result, "hp:sz"), "height", rows.reduce((sum, row) =>
         sum + Math.max(...children(row, "hp:tc").map((c) => Number(child(c, "hp:cellSz").attributes.height))), 0));
-      setAttribute(result, "pageBreak", "TABLE");
     }
     return result;
   }
@@ -343,8 +324,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     replaceText(nodes[0], `[${department.parentOffice ? `${department.parentOffice}_` : ""}${department.name}]`);
     const main = renderOuter(source.main, [department.items.lastWeek, department.items.thisWeek], 2);
     const ongoing = renderOuter(source.ongoing, [department.items.ongoing], 1);
-    layoutChanged ||= child(main, "hp:sz").attributes.height !== child(source.main, "hp:sz").attributes.height ||
-      child(ongoing, "hp:sz").attributes.height !== child(source.ongoing, "hp:sz").attributes.height;
+    layoutChanged ||= !equal(department.items, source.data.items);
     const mainCells = tableCells(main);
     for (const [index, text] of [
       [0, `전주 실적${data.lastWeekPeriod}`], [1, `금주 계획${data.thisWeekPeriod}`],
@@ -356,8 +336,9 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         c.name === "hp:tbl" && c.attributes.id === source.main.attributes.id ? main :
         c.name === "hp:tbl" && c.attributes.id === source.ongoing.attributes.id ? ongoing : c);
     }
-    if (layoutChanged) for (const table of [main, ongoing])
+    if (layoutChanged) for (const table of [main, ongoing]) {
       setAttribute(child(table, "hp:pos"), "flowWithText", "1");
+    }
     return nodes;
   });
   t.section.children = [...cover, ...body];
