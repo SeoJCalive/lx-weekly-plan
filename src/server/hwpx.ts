@@ -318,9 +318,16 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     replaceText(p, value);
   }
   let layoutChanged = false;
+  const partial = data.departments.length < t.departments.length;
   const body = data.departments.flatMap((department) => {
     const source = t.departments.find((d) => d.data.id === department.id) ?? t.departments[0];
     const nodes = source.nodes.map(clone);
+    if (partial) {
+      // Full-form trailing spacers position the next department, which may be omitted here.
+      while (nodes.length > 1 && !paragraphText(nodes.at(-1)!).trim() &&
+        !descendants(nodes.at(-1)!, "hp:tbl").length && !descendants(nodes.at(-1)!, "hp:ctrl").length) nodes.pop();
+      setAttribute(nodes[0], "pageBreak", "1");
+    }
     replaceText(nodes[0], `[${department.parentOffice ? `${department.parentOffice}_` : ""}${department.name}]`);
     const main = renderOuter(source.main, [department.items.lastWeek, department.items.thisWeek], 2);
     const ongoing = renderOuter(source.ongoing, [department.items.ongoing], 1);

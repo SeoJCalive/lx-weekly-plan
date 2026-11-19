@@ -10,7 +10,7 @@ import { newTable } from "./table";
 import { names, Status } from "./Workflow";
 
 const itemPath=(it:ItemView)=>`items/${encodeURIComponent(it.id)}`;
-export function Writing({person,week,units,departmentId,itemId,picker}:{person:Person;week:WeekView;units:Organisation[];departmentId?:string;itemId?:string;picker:ReactNode}) {
+export function Writing({person,week,units,departmentId,itemId,picker,history}:{person:Person;week:WeekView;units:Organisation[];departmentId?:string;itemId?:string;picker:ReactNode;history:(id:string)=>void}) {
   const sections=week.departments.filter(d=>{
     let id:string|null=d.id;
     while (id) { if (id===person.organisationId) return true; id=units.find(o=>o.id===id)?.parentId ?? null; }
@@ -18,14 +18,16 @@ export function Writing({person,week,units,departmentId,itemId,picker}:{person:P
   });
   const [id,setId]=useState(departmentId ?? sections[0]?.id);
   const current=sections.find(d=>d.id===id);
+  const office=units.find(o=>o.kind==="office" && o.id===units.find(d=>d.id===id)?.parentId &&
+    (person.organisationId===o.id || person.organisationId===o.parentId));
   return <main id="writing" className="page">
     <div className="page-heading"><div><div className="context">{week.title} <span>/</span> 작성</div><h1>{current?.name} 업무 작성</h1></div>
       {picker}
     </div>
-    {current ? <Desk key={current.id} initial={current} week={week} person={person} sections={sections} onSection={setId} itemId={itemId}/> : <p>작성 가능한 처가 없습니다.</p>}
+    {current ? <Desk key={current.id} initial={current} week={week} person={person} sections={sections} onSection={setId} itemId={itemId} history={history} office={office}/> : <p>작성 가능한 처가 없습니다.</p>}
   </main>;
 }
-function Desk({initial,week,person,sections,onSection,itemId}:{initial:DepartmentView;week:WeekView;person:Person;sections:DepartmentView[];onSection:(id:string)=>void;itemId?:string}) {
+function Desk({initial,week,person,sections,onSection,itemId,history,office}:{initial:DepartmentView;week:WeekView;person:Person;sections:DepartmentView[];onSection:(id:string)=>void;itemId?:string;history:(id:string)=>void;office?:Organisation}) {
   const key=`lx:${week.id}:${person.id}:${initial.id}`;
   const first=categories.flatMap(c=>initial.items[c]).find(it=>it.id===(itemId ?? sessionStorage.getItem(key))) ?? initial.items.thisWeek[0] ?? initial.items.lastWeek[0] ?? initial.items.ongoing[0];
   const [dept,setDept]=useState(initial), [cat,setCat]=useState<WorkCategory>(first?.category ?? "thisWeek");
@@ -168,7 +170,7 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
       {!dept.items[cat].length && <p>아직 등록된 항목이 없습니다.</p>}
       {error && <p role="alert">{error}</p>}{!online && <p role="alert">오프라인입니다. 연결 후 저장하세요.</p>}
       {item && draft && <section className="editor"><div className="section-head"><h2>{names[cat]} {number}번</h2>
-        <Status value={item.status}/></div>
+        <div className="actions"><Status value={item.status}/><button disabled={busy} onClick={()=>history(item.id)}>항목 기록</button></div></div>
         <div className="edit-tools"><span role="status">{other ? item.lock!.message : editable ? `${person.name} 편집 중` : "읽기 전용"}</span>
           {item.status==="검토 요청" && item.actions.includes("withdraw") && <button disabled={busy || !online} onClick={()=>review("withdraw")}>회수</button>}
           {item.status!=="검토 요청" && !other && (mine && !editable ? <button disabled={busy || !online} onClick={()=>void action(async()=>{
@@ -201,10 +203,11 @@ function Desk({initial,week,person,sections,onSection,itemId}:{initial:Departmen
         </form>
       </section>}
     </section>
-    <aside className="preview-pane" aria-label="양식 미리보기"><div className="section-head"><h2>양식 미리보기</h2>
-      <a className="button" href={`/api/week/hwpx?weekId=${week.id}`} download onClick={e=>{
-        if((dirty || labelDirty) && !confirm("저장된 내용으로 전체 주차 파일을 내려받을까요?"))e.preventDefault();
-      }}>전체 주차 HWPX 다운로드</a></div>
+    <aside className="preview-pane" aria-label="양식 미리보기"><div className="section-head export-head"><h2>양식 미리보기</h2>
+      <div className="actions" role="group" aria-label="HWPX 다운로드"><span>HWPX 다운로드</span>
+        {[{id:"",name:"전체 주차"},dept,...(office?[office]:[])].map(u=><a className="button" key={u.id}
+          href={`/api/week/hwpx?weekId=${week.id}${u.id?`&organisationId=${encodeURIComponent(u.id)}`:""}`} download aria-label={`${u.name} HWPX 다운로드`}
+          onClick={e=>{if((dirty || labelDirty) && !confirm(`저장된 내용으로 ${u.name} 파일을 내려받을까요?`))e.preventDefault();}}>{u.name}</a>)}</div></div>
       {person.departmentId===dept.id && <div className="label-tools">{editLabel ? <form onSubmit={e=>{
         e.preventDefault();void action(async()=>{
           const result=await api<Pick<DepartmentView,"labels">>(`departments/${dept.id}/label?weekId=${week.id}`,"PUT",{thisWeek:label});

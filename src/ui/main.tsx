@@ -1,16 +1,19 @@
 import { createRoot } from "react-dom/client";
 import { useEffect, useState } from "react";
-import type { BoardPost, DashboardView, Organisation, Person, TodoView, WeekSummary, WeekView } from "../shared/api";
+import type { BoardPost, DashboardView, DeadlineView, Organisation, Person, StatisticsView, TodoView, WeekSummary, WeekView } from "../shared/api";
 import { api, roles } from "./api";
 import { SignIn } from "./SignIn";
 import { Writing } from "./Writing";
 import { Dashboard } from "./Dashboard";
 import { Todos, WeekPicker, type Place } from "./Workflow";
 import { Publications, Release } from "./Publishing";
+import { Deadline } from "./Deadline";
+import { Records } from "./Records";
 
 function Screen({person,units,place,go}:{person:Person;units:Organisation[];place:Place;go:(p:Place)=>void}) {
   const [data,setData]=useState<{week:WeekView;board?:DashboardView;todos?:TodoView;posts?:BoardPost[]}>();
   const [weeks,setWeeks]=useState<WeekSummary[]>([]);
+  const [deadline,setDeadline]=useState<DeadlineView>(),[stats,setStats]=useState<StatisticsView>();
   const [error,setError]=useState(""),[change,setChange]=useState(0);
   const refresh=()=>setChange(n=>n+1);
   useEffect(()=>{
@@ -22,6 +25,11 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
         setWeeks(list);
         const id=place.weekId ?? writingWeek ?? list.find(w=>w.isCurrent)!.id;
         const q=`?weekId=${id}`;
+        if(place.page==="기록"){
+          const s=await api<StatisticsView>("statistics"+q);if(stopped)return;setStats(s);
+        }else{
+          const d=await api<DeadlineView>("deadline"+q);if(stopped)return;setDeadline(d);
+        }
         if(place.page==="작성"){
           if(!writingWeek){
             const week=await api<WeekView>("week"+q);if(!stopped){writingWeek=week.id;setData({week});}
@@ -44,13 +52,16 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
     void load();return ()=>{stopped=true;clearTimeout(timer);};
   },[change,place.page,place.weekId,person.role]);
   const week=weeks.find(w=>w.id===data?.week.id);
-  const picker=week && <WeekPicker weeks={weeks} id={week.id} select={id=>go({page:place.page,weekId:id})}/>;
+  const picker=week && <div className="week-context"><WeekPicker weeks={weeks} id={week.id} select={id=>go({page:place.page,weekId:id})}/>
+    {deadline?.weekId===week.id && <Deadline value={deadline} manage={place.page!=="작성"} update={v=>{setDeadline(v);refresh();}}/>}</div>;
+  const history=(itemId:string)=>go({page:"기록",itemId,weekId:data!.week.id});
   const stage=data?.board?.stages.find(s=>s.reviewerId===person.id && s.reviewUnit==="section" && s.parentStageId===null);
   const release=stage && week && data?.board && data.posts && <Release key={week.id} week={week} board={data.board} stageId={stage.id} posts={data.posts} go={go}/>;
   return <>{error && <p className="notice" role="alert">{error} <button onClick={refresh}>다시 시도</button></p>}
     {!data?<main className="page" role="status">주간업무 계획을 불러오는 중…</main>:
-    place.page==="작성"?<Writing person={person} week={data.week} units={units} departmentId={place.departmentId} itemId={place.itemId} picker={picker}/>:
-    place.page==="현황판" && data.board?<Dashboard key={data.week.id} person={person} units={units} place={place} week={data.week} board={data.board} refresh={refresh} picker={picker} release={release}/>:
+    place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} itemId={place.itemId} picker={picker}/>:
+    place.page==="작성"?<Writing person={person} week={data.week} units={units} departmentId={place.departmentId} itemId={place.itemId} picker={picker} history={history}/>:
+    place.page==="현황판" && data.board?<Dashboard key={data.week.id} person={person} units={units} place={place} week={data.week} board={data.board} refresh={refresh} picker={picker} release={release} history={history}/>:
     data.todos && data.board?<Todos week={data.week} view={data.todos} board={data.board} units={units} person={person} go={go} picker={picker} release={release}/>:null}</>;
 }
 
@@ -76,7 +87,6 @@ function App() {
   const org = units.find(o => o.id === person.organisationId);
   return <><header className="mast"><strong>주간업무 계획</strong>
     <nav aria-label="주 메뉴">{(["첫 화면","작성","현황판","게시판","기록"] as const).map(m =>
-      m==="기록"?<button key={m} disabled title="아직 제공하지 않는 메뉴">{m}</button>:
       <button key={m} aria-current={place.page===m?"page":undefined} onClick={()=>{if(place.page!==m)go({page:m});}}>{m}</button>)}</nav>
     <div className="identity"><b>{person.name} {person.title}</b><span>{org?.name} · {roles[person.role]}</span>
       <button onClick={async () => {

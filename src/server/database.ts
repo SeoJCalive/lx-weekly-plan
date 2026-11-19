@@ -114,6 +114,9 @@ export function openDatabase(path = databasePath): Database {
       UPDATE review_stages SET review_unit = 'item' WHERE organisation_id IN
         (SELECT id FROM organisations WHERE kind = 'department');`);
   }
+  if (!db.query<{ name: string }, []>("PRAGMA table_info(weeks)").all().some((column) => column.name === "deadline_at")) {
+    db.exec("ALTER TABLE weeks ADD COLUMN deadline_at INTEGER");
+  }
   for (const table of ["items", "assignments", "edit_locks", "sections", "review_sections", "review_records", "weeks", "board_posts"]) {
     for (const action of ["INSERT", "UPDATE", "DELETE"]) db.exec(`
       CREATE TRIGGER IF NOT EXISTS revision_${table}_${action} AFTER ${action} ON ${table}

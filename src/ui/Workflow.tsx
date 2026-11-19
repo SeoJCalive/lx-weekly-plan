@@ -3,7 +3,7 @@ import type { DashboardView, ItemStatus, Organisation, Person, TodoView, WeekSum
 import { categories, plainText } from "../shared/weekly-plan";
 
 export const names = { lastWeek:"전주 실적", thisWeek:"금주 계획", ongoing:"계속업무" };
-export type Place = { page:"첫 화면"|"작성"|"현황판"|"게시판"; departmentId?:string; itemId?:string; stageId?:number; weekId?:number; postId?:number };
+export type Place = { page:"첫 화면"|"작성"|"현황판"|"게시판"|"기록"; departmentId?:string; itemId?:string; stageId?:number; weekId?:number; postId?:number };
 export function Status({value}:{value:ItemStatus}) {
   return <span className="status" data-status={value}>{value}</span>;
 }

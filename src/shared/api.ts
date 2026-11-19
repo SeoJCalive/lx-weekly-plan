@@ -157,3 +157,44 @@ export interface TodoView {
 }
 export interface ReturnItemRequest { message: string }
 export interface ReturnSectionRequest extends ReturnItemRequest { itemIds: string[] }
+
+export type HistoryField = "title" | "content" | "notes" | "tables" | "assignee";
+export type ItemChange = {
+  [Field in HistoryField]: { field: Field; oldValue: WorkItem[Field]; newValue: WorkItem[Field] }
+}[HistoryField];
+export interface ItemHistoryEntry {
+  id: number;
+  action: "requested" | "returned" | "approved";
+  at: number;
+  actor: Person;
+  stageId: number;
+  versionId: number;
+  versionNumber: number;
+  content: WorkItem;
+  message: string | null;
+  changes: ItemChange[];
+}
+export interface ItemHistory {
+  itemId: string;
+  entries: ItemHistoryEntry[];
+}
+export interface DeadlineView {
+  weekId: number;
+  deadlineAt: number;
+  passed: boolean;
+  canChange: boolean;
+}
+export interface DepartmentStatistics {
+  departmentId: string;
+  name: string;
+  revisions: number;
+  revisionRequests: number;
+  firstSubmittedAt: number | null;
+  /** Pending before the deadline, false after it, or the first compilation's result. */
+  deadlineMet: boolean | null;
+}
+export interface StatisticsView {
+  weekId: number;
+  deadline: DeadlineView;
+  departments: DepartmentStatistics[];
+}

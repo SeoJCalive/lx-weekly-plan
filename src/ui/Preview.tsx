@@ -30,10 +30,10 @@ export function Nested({table}:{table:WorkTable}) {
         </td>;
       })}</tr>)}</tbody></table>;
 }
-function rows(groups: (WorkItem|undefined)[][], ongoing=false) {
+function rows(groups: (WorkItem|undefined)[][], ongoing=false, history?:(id:string)=>void) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
     <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
-      {item && <><Title item={item} number={i+1}/>
+      {item && <>{history?<button className="doc-history" title="항목 기록" onClick={()=>history(item.id)}><Title item={item} number={i+1}/></button>:<Title item={item} number={i+1}/>}
         {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
         {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
         {!!item.tables.length && <div className="subtables">{item.tables.map(t=><Nested key={t.id} table={t}/>)}</div>}
@@ -48,7 +48,7 @@ export function Cover({week}:{week:WeeklyPlan}) {
     <b className="cover-date">{week.writtenDate}</b><div className="cover-logo"><img alt="LX" src={layout.cover[2]}/><img alt="한국국토정보공사" src={layout.cover[3]}/></div>
   </div></details>;
 }
-export function Preview({dept,week}:{dept:Department;week:WeeklyPlan}) {
+export function Preview({dept,week,history}:{dept:Department;week:WeeklyPlan;history?:(id:string)=>void}) {
   const host=useRef<HTMLDivElement>(null), [available,setAvailable]=useState(700);
   const [main,ongoing]=layout.bySection[dept.id] ?? [[51782,2500,2300,0],[51782,2300,0,0]];
   const width=Math.max(px(main[0]),px(ongoing[0])), scale=Math.max(.72,Math.min(1.15,available/width));
@@ -63,8 +63,8 @@ export function Preview({dept,week}:{dept:Department;week:WeeklyPlan}) {
       <tr style={{height:px(main[1])}}>{[["전주 실적",week.lastWeekPeriod],["금주 계획",week.thisWeekPeriod]].map(([label,period])=>
         <th key={label}>{label}<span>{period}</span></th>)}</tr>
       <tr className="doc-sub" style={{height:px(main[2])}}><th>{dept.labels.lastWeek}</th><th>{dept.labels.thisWeek}</th></tr>
-    </thead><tbody>{rows(Array.from({length:Math.max(left.length,right.length)},(_,i)=>[left[i],right[i]]))}</tbody></table>
+    </thead><tbody>{rows(Array.from({length:Math.max(left.length,right.length)},(_,i)=>[left[i],right[i]]),false,history)}</tbody></table>
     <table className="outer ongoing" style={{width:px(ongoing[0]),marginTop:px(ongoing[4] ?? 2400)}}><thead><tr style={{height:px(ongoing[1])}}>
-      <th>{dept.labels.ongoing}</th></tr></thead><tbody>{rows(dept.items.ongoing.map(it=>[it]),true)}</tbody></table>
+      <th>{dept.labels.ongoing}</th></tr></thead><tbody>{rows(dept.items.ongoing.map(it=>[it]),true,history)}</tbody></table>
   </article></div>;
 }

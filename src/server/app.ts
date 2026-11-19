@@ -5,6 +5,7 @@ import { organisations, people, personColumns, readPlan } from "./database";
 import { generateHwpx } from "./hwpx";
 import { createReview } from "./review";
 import { createPublishing } from "./publishing";
+import { createRecords, itemHistory } from "./records";
 import { ApiFailure, object, saveInput, text } from "./validation";
 
 export const lockIdleMs = 90_000;
@@ -155,6 +156,17 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         throw new ApiFailure(400, "주차 ID가 올바르지 않습니다.");
       const week = publishing.week(selectedId === null ? undefined : Number(selectedId));
       const weekReview = createReview(db, now, week.id);
+      const records = createRecords(db, now, week);
+      if (path === "/api/deadline" && method === "GET") return json(records.deadline(person));
+      if (path === "/api/deadline" && method === "PUT")
+        return json(records.changeDeadline((await body(request)).deadlineAt, person));
+      if (path === "/api/statistics" && method === "GET") return json(records.statistics(person));
+      const historyMatch = /^\/api\/items\/([^/]+)\/history$/.exec(path);
+      if (historyMatch && method === "GET") {
+        const row = itemRow(historyMatch[1]);
+        if (!review.inScope(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목 이력만 열람할 수 있습니다.");
+        return json(itemHistory(db, row.id));
+      }
       if (path === "/api/dashboard" && method === "GET") return json(weekReview.dashboard(person));
       if (path === "/api/todos" && method === "GET") return json(weekReview.todos(person));
       if (path === "/api/week" && method === "GET") {
@@ -170,13 +182,21 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         };
         return json(result);
       }
-      if (path === "/api/week/hwpx" && method === "GET") return new Response(
-        new Uint8Array(generateHwpx(readPlan(db, week.id), templateBytes)),
-        { headers: {
+      if (path === "/api/week/hwpx" && method === "GET") {
+        const plan = readPlan(db, week.id), organisationId = url.searchParams.get("organisationId");
+        if (organisationId !== null) {
+          const units = organisations(db), unit = units.find((unit) => unit.id === organisationId);
+          if (!unit) throw new ApiFailure(404, "조직을 찾을 수 없습니다.");
+          if (unit.kind === "headquarters") throw new ApiFailure(400, "처 또는 실을 선택하세요.");
+          if (!review.inScope(unit.id, person)) throw new ApiFailure(403, "본인 소속 범위만 출력할 수 있습니다.");
+          plan.departments = plan.departments.filter((department) => unit.kind === "department" ?
+            department.id === unit.id : units.find((candidate) => candidate.id === department.id)?.parentId === unit.id);
+        }
+        return new Response(new Uint8Array(generateHwpx(plan, templateBytes)), { headers: {
           "Content-Type": "application/hwp+zip",
           "Content-Disposition": "attachment; filename=\"weekly-plan.hwpx\"",
-        } },
-      );
+        } });
+      }
       if (path === "/api/items" && method === "POST") {
         const input = await body(request);
         const departmentId = text(input.departmentId, "소속 처");
