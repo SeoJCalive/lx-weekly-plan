@@ -147,8 +147,8 @@ label input,label select,label textarea {font-weight:400}
 .history .review-message {margin:var(--s3) 0}
 .history summary {width:fit-content;cursor:pointer;padding:var(--s1) 0;font-size:var(--small);font-weight:600}
 .history .review-copy,.differences {padding:var(--s3);background:var(--soft)}
-.history .review-copy [data-color=blue],.difference [data-color=blue] {color:var(--doc-blue)}
-.history .review-copy [data-color=red],.difference [data-color=red] {color:var(--doc-red)}
+.review-copy [data-color=blue],.difference [data-color=blue] {color:var(--doc-blue)}
+.review-copy [data-color=red],.difference [data-color=red] {color:var(--doc-red)}
 .differences {display:grid;gap:var(--s2);font-size:var(--small);margin:var(--s3) 0}
 .difference>div {display:flex;align-items:baseline;gap:var(--s3);white-space:pre-wrap;overflow-wrap:anywhere}
 .difference small {flex:none;color:var(--mute)}
