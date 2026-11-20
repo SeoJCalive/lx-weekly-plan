@@ -5,7 +5,7 @@ import { organisations, people, personColumns, readPlan } from "./database";
 import { generateHwpx } from "./hwpx";
 import { createReview } from "./review";
 import { createPublishing } from "./publishing";
-import { createRecords, itemHistory } from "./records";
+import { createRecords, itemHistory, sectionHistory } from "./records";
 import { ApiFailure, object, saveInput, text } from "./validation";
 
 export const lockIdleMs = 90_000;
@@ -161,6 +161,14 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       if (path === "/api/deadline" && method === "PUT")
         return json(records.changeDeadline((await body(request)).deadlineAt, person));
       if (path === "/api/statistics" && method === "GET") return json(records.statistics(person));
+      const sectionHistoryMatch = /^\/api\/sections\/([^/]+)\/history$/.exec(path);
+      if (sectionHistoryMatch && method === "GET") {
+        const departmentId = sectionHistoryMatch[1];
+        if (!db.query("SELECT id FROM sections WHERE department_id = ? AND week_id = ?").get(departmentId, week.id))
+          throw new ApiFailure(404, "처 섹션을 찾을 수 없습니다.");
+        if (!review.inScope(departmentId, person)) throw new ApiFailure(403, "소속 범위의 기록만 열람할 수 있습니다.");
+        return json(sectionHistory(db, departmentId, week.id));
+      }
       const historyMatch = /^\/api\/items\/([^/]+)\/history$/.exec(path);
       if (historyMatch && method === "GET") {
         const row = itemRow(historyMatch[1]);

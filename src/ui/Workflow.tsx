@@ -3,9 +3,9 @@ import type { DashboardView, ItemStatus, Organisation, Person, TodoView, WeekSum
 import { categories, plainText } from "../shared/weekly-plan";
 
 export const names = { lastWeek:"전주 실적", thisWeek:"금주 계획", ongoing:"계속업무" };
-export type Place = { page:"첫 화면"|"작성"|"현황판"|"게시판"|"기록"; departmentId?:string; itemId?:string; stageId?:number; weekId?:number; postId?:number };
-export function Status({value}:{value:ItemStatus}) {
-  return <span className="status" data-status={value}>{value}</span>;
+export type Place = { page:"첫 화면"|"작성"|"현황판"|"게시판"|"기록"; departmentId?:string; itemId?:string; stepId?:number; stageId?:number; weekId?:number; postId?:number };
+export function Status({value,label=value}:{value:ItemStatus;label?:string}) {
+  return <span className="status" data-status={value}>{label}</span>;
 }
 export function WeekPicker({weeks,id,select}:{weeks:WeekSummary[];id:number;select:(id:number)=>void}) {
   const period=(w:WeekSummary)=>`${w.writtenDate.slice(0,4)}년 ${w.thisWeekPeriod.replace(/[()]/g,"")}`;

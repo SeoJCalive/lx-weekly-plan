@@ -172,6 +172,7 @@ export interface ItemHistoryEntry {
   at: number;
   actor: Person;
   stageId: number;
+  reviewUnit: ReviewStage["reviewUnit"];
   versionId: number;
   versionNumber: number;
   content: WorkItem;
@@ -182,6 +183,20 @@ export interface ItemHistoryEntry {
 export interface ItemHistory {
   itemId: string;
   entries: ItemHistoryEntry[];
+}
+export interface SectionHistoryEntry {
+  readonly id: number;
+  readonly action: "submitted" | "returned" | "approved";
+  readonly at: number;
+  readonly actor: Person;
+  readonly stageId: number;
+  readonly reviewUnit: ReviewStage["reviewUnit"];
+  readonly message: string | null;
+  readonly items: readonly { readonly itemId: string; readonly title: WorkItem["title"]; readonly entryId: number }[];
+}
+export interface SectionHistory {
+  readonly departmentId: string;
+  readonly entries: readonly SectionHistoryEntry[];
 }
 export interface DeadlineView {
   weekId: number;

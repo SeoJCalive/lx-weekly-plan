@@ -88,11 +88,13 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
         id: version.id, number: version.number, requestedAt: version.requestedAt,
         requestedBy: version.requestedBy, changed: !!version.changed, content: JSON.parse(version.content_json), note: version.note,
       } : null,
-      messages: db.query<ItemReview["messages"][number], [string]>(`SELECT r.id, r.version_id AS versionId,
+      messages: db.query<ItemReview["messages"][number], [string]>(`SELECT r.id, v.id AS versionId,
         r.stage_id AS stageId, r.actor_id AS actorId, r.at, r.message,
         stage.review_unit AS reviewUnit, p.name AS senderName, p.title AS senderTitle FROM review_records r
         JOIN review_stages stage ON stage.id = r.stage_id JOIN people p ON p.id = r.actor_id
-        JOIN item_versions v ON v.id = r.version_id WHERE v.item_id = ? AND r.action = 'returned'
+        JOIN item_versions v ON v.id = r.version_id OR (r.version_id IS NULL AND
+          EXISTS (SELECT 1 FROM json_each(r.versions_json) WHERE value = v.id))
+        WHERE v.item_id = ? AND r.action = 'returned'
         ORDER BY r.id`).all(id),
     };
   }
@@ -236,11 +238,10 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
           throw new ApiFailure(403, "해당 처 섹션의 항목만 지목할 수 있습니다.");
         invalidate(section.id);
         for (const row of targets) {
-          const version = latest(row.id)!;
           db.query("UPDATE items SET status = '수정 요청' WHERE id = ?").run(row.id);
           db.query("DELETE FROM edit_locks WHERE item_id = ?").run(row.id);
-          record(stage.id, section.id, version.id, "returned", person, versionIds, message);
         }
+        record(stage.id, section.id, null, "returned", person, targets.map(row => latest(row.id)!.id), message);
       } else record(stage.id, section.id, null, "approved", person, versionIds);
       db.query(`UPDATE review_sections SET status = ?, decided_at = ?, actor_id = ?
         WHERE section_id = ? AND stage_id = ?`).run(

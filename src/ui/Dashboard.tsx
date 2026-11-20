@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { itemStatuses, type DashboardView, type DepartmentView, type ItemView, type Organisation, type Person, type WeekView } from "../shared/api";
+import { itemStatuses, type DashboardView, type DepartmentView, type ItemChange, type ItemView, type Organisation, type Person, type WeekView } from "../shared/api";
 import { categories, plainText, type WorkItem } from "../shared/weekly-plan";
 import { api } from "./api";
 import { Nested, Preview, Runs } from "./Preview";
@@ -37,14 +37,14 @@ function ItemContent({item}:{item:ItemView}) {
   return <><VersionContent text={text} label={submitted?`검토 제출본 · ${v.number}차`:"현재 작성본"}/>
     {submitted && v.note && <ReviewCard kind="note" message={v.note} at={v.requestedAt} open/>}</>;
 }
-export function VersionContent({text,label}:{text:WorkItem;label?:string}) {
+export function VersionContent({text,label,changes=[]}:{text:WorkItem;label?:string;changes?:readonly ItemChange[]}) {
   return <div className="review-copy">
     {label && <small>{label}</small>}
-    <h3 tabIndex={-1}><Runs line={text.title}/></h3>
-    {text.content.map((line,i)=><p key={i}><Runs line={line}/></p>)}
-    {text.notes.map((line,i)=><p key={i}><Runs line={line}/></p>)}
-    {text.tables.map(table=><div className="review-table" key={table.id}><Nested table={table}/></div>)}
-    <p>업무담당자 · {text.assignee || "미지정"}</p>
+    <h3 tabIndex={-1} data-changed={changes.some(c=>c.field==="title")}><Runs line={text.title}/></h3>
+    {text.content.map((line,i)=><p key={i} data-changed={changes.some(c=>c.field==="content" && !c.oldValue.some(old=>JSON.stringify(old)===JSON.stringify(line)))}><Runs line={line}/></p>)}
+    {text.notes.map((line,i)=><p key={i} data-changed={changes.some(c=>c.field==="notes" && !c.oldValue.some(old=>JSON.stringify(old)===JSON.stringify(line)))}><Runs line={line}/></p>)}
+    {text.tables.map(table=><div className="review-table" data-changed={changes.some(c=>c.field==="tables" && !c.oldValue.some(old=>JSON.stringify(old)===JSON.stringify(table)))} key={table.id}><Nested table={table}/></div>)}
+    <p data-changed={changes.some(c=>c.field==="assignee")}>업무담당자 · {text.assignee || "미지정"}</p>
   </div>;
 }
 export function Dashboard({board,week,units,person,place,refresh,picker,release,history}:{board:DashboardView;week:WeekView;units:Organisation[];person:Person;place:Place;refresh:()=>void;picker:ReactNode;release?:ReactNode;history:(id:string)=>void}) {

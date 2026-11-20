@@ -30,10 +30,10 @@ export function Nested({table}:{table:WorkTable}) {
         </td>;
       })}</tr>)}</tbody></table>;
 }
-function rows(groups: (WorkItem|undefined)[][], ongoing=false, history?:(id:string)=>void) {
+function rows(groups: (WorkItem|undefined)[][], ongoing=false, options?:{history?:(id:string)=>void;number?:number}) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
     <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
-      {item && <>{history?<button className="doc-history" title="항목 기록" onClick={()=>history(item.id)}><Title item={item} number={i+1}/></button>:<Title item={item} number={i+1}/>}
+      {item && <>{options?.history?<button className="doc-history" title="항목 기록" onClick={()=>options.history?.(item.id)}><Title item={item} number={options.number??i+1}/></button>:<Title item={item} number={options?.number??i+1}/>}
         {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
         {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
         {!!item.tables.length && <div className="subtables">{item.tables.map(t=><Nested key={t.id} table={t}/>)}</div>}
@@ -41,6 +41,14 @@ function rows(groups: (WorkItem|undefined)[][], ongoing=false, history?:(id:stri
     <tr>{pair.map((item,j)=><td className="doc-assignee" key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[1] ?? 2100)}}>
       {item && <><b>➢ (업무담당자)</b> {item.assignee}</>}</td>)}</tr>
   </Fragment>);
+}
+export function ItemPreview({dept,item}:{dept:Department;item:WorkItem}) {
+  const category=(["lastWeek","thisWeek","ongoing"] as const).find(c=>dept.items[c].some(it=>it.id===item.id)) ?? "thisWeek";
+  const geometry=layout.bySection[dept.id],number=dept.items[category].findIndex(it=>it.id===item.id)+1;
+  const width=px(category==="ongoing"?geometry[1][0]:geometry[0][0]/2);
+  return <div className="paper-frame"><article className="form-paper" aria-label="항목 한글 양식" style={{width}}>
+    <table className="outer ongoing" style={{width:"100%"}}><tbody>{rows([[item]],category==="ongoing",{number})}</tbody></table>
+  </article></div>;
 }
 export function Cover({week}:{week:WeeklyPlan}) {
   return <details className="cover"><summary>표지 보기</summary><div className="cover-paper" aria-label="문서 표지">
@@ -63,8 +71,8 @@ export function Preview({dept,week,history}:{dept:Department;week:WeeklyPlan;his
       <tr style={{height:px(main[1])}}>{[["전주 실적",week.lastWeekPeriod],["금주 계획",week.thisWeekPeriod]].map(([label,period])=>
         <th key={label}>{label}<span>{period}</span></th>)}</tr>
       <tr className="doc-sub" style={{height:px(main[2])}}><th>{dept.labels.lastWeek}</th><th>{dept.labels.thisWeek}</th></tr>
-    </thead><tbody>{rows(Array.from({length:Math.max(left.length,right.length)},(_,i)=>[left[i],right[i]]),false,history)}</tbody></table>
+    </thead><tbody>{rows(Array.from({length:Math.max(left.length,right.length)},(_,i)=>[left[i],right[i]]),false,{history})}</tbody></table>
     <table className="outer ongoing" style={{width:px(ongoing[0]),marginTop:px(ongoing[4] ?? 2400)}}><thead><tr style={{height:px(ongoing[1])}}>
-      <th>{dept.labels.ongoing}</th></tr></thead><tbody>{rows(dept.items.ongoing.map(it=>[it]),true,history)}</tbody></table>
+      <th>{dept.labels.ongoing}</th></tr></thead><tbody>{rows(dept.items.ongoing.map(it=>[it]),true,{history})}</tbody></table>
   </article></div>;
 }

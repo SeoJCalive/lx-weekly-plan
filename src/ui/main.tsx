@@ -9,12 +9,14 @@ import { Todos, WeekPicker, type Place } from "./Workflow";
 import { Publications, Release } from "./Publishing";
 import { Deadline } from "./Deadline";
 import { Records } from "./Records";
+import { HistoryDialog } from "./HistoryDialog";
 
 function Screen({person,units,place,go}:{person:Person;units:Organisation[];place:Place;go:(p:Place)=>void}) {
   const [data,setData]=useState<{week:WeekView;board?:DashboardView;todos?:TodoView;posts?:BoardPost[]}>();
   const [weeks,setWeeks]=useState<WeekSummary[]>([]);
   const [deadline,setDeadline]=useState<DeadlineView>(),[stats,setStats]=useState<StatisticsView>();
   const [error,setError]=useState(""),[change,setChange]=useState(0);
+  const [historyItem,setHistoryItem]=useState<string>();
   const refresh=()=>setChange(n=>n+1);
   useEffect(()=>{
     let stopped=false,timer:number,revision=-1,interval=1000,writingWeek:number|undefined;
@@ -54,15 +56,17 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
   const week=weeks.find(w=>w.id===data?.week.id);
   const picker=week && <div className="week-context"><WeekPicker weeks={weeks} id={week.id} select={id=>go({page:place.page,weekId:id})}/>
     {deadline?.weekId===week.id && <Deadline value={deadline} manage={place.page!=="작성"} update={v=>{setDeadline(v);refresh();}}/>}</div>;
-  const history=(itemId:string)=>go({page:"기록",itemId,weekId:data!.week.id});
+  const history=(itemId:string)=>setHistoryItem(itemId);
   const stage=data?.board?.stages.find(s=>s.reviewerId===person.id && s.reviewUnit==="section" && s.parentStageId===null);
   const release=stage && week && data?.board && data.posts && <Release key={week.id} week={week} board={data.board} stageId={stage.id} posts={data.posts} go={go}/>;
   return <>{error && <p className="notice" role="alert">{error} <button onClick={refresh}>다시 시도</button></p>}
     {!data?<main className="page" role="status">주간업무 계획을 불러오는 중…</main>:
-    place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} itemId={place.itemId} picker={picker}/>:
+    place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} itemId={place.itemId} stepId={place.stepId} picker={picker}/>:
     place.page==="작성"?<Writing person={person} week={data.week} units={units} departmentId={place.departmentId} itemId={place.itemId} picker={picker} history={history}/>:
     place.page==="현황판" && data.board?<Dashboard key={data.week.id} person={person} units={units} place={place} week={data.week} board={data.board} refresh={refresh} picker={picker} release={release} history={history}/>:
-    data.todos && data.board?<Todos week={data.week} view={data.todos} board={data.board} units={units} person={person} go={go} picker={picker} release={release}/>:null}</>;
+    data.todos && data.board?<Todos week={data.week} view={data.todos} board={data.board} units={units} person={person} go={go} picker={picker} release={release}/>:null}
+    {historyItem && data && <HistoryDialog itemId={historyItem} weekId={data.week.id} close={()=>setHistoryItem(undefined)}
+      openRecord={(itemId,stepId)=>go({page:"기록",itemId,stepId,weekId:data.week.id})}/>}</>;
 }
 
 function App() {

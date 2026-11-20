@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { strFromU8, unzipSync } from "fflate";
-import type { DeadlineView, ItemHistory, ItemView, SaveItemRequest, StatisticsView, WeekSummary } from "../shared/api";
+import type { DeadlineView, ItemHistory, ItemView, SaveItemRequest, SectionHistory, StatisticsView, WeekSummary } from "../shared/api";
 import { seed } from "../shared/seed";
 import { createApp } from "./app";
 import { openDatabase } from "./database";
@@ -110,6 +110,7 @@ describe("item history from fixed review records", () => {
     expect(result.entries.map((entry) => entry.action))
       .toEqual(["requested", "requested", "returned", "requested", "approved"]);
     expect(result.entries.map((entry) => entry.versionNumber)).toEqual([1, 2, 2, 3, 3]);
+    expect(result.entries.map((entry) => entry.reviewUnit)).toEqual(["item", "item", "item", "item", "item"]);
     expect(result.entries.map((entry) => entry.note)).toEqual([null, "회수 후 다시 확인", "회수 후 다시 확인", "근거 보완", "근거 보완"]);
     expect(result.entries[2]).toMatchObject({
       at: clock - 1, actor: { employeeNumber: "R0001" }, message: "근거를 보완하세요.",
@@ -150,6 +151,7 @@ describe("item history from fixed review records", () => {
     await ok("POST", `${path}/approve`, "O0001");
     expect((await history()).entries.map((entry) => entry.action)).toEqual(["requested", "approved", "approved"]);
     expect((await history()).entries.at(-1)!.actor.employeeNumber).toBe("O0001");
+    expect((await history()).entries.at(-1)!.reviewUnit).toBe("section");
     const other = department.items.lastWeek[0].id;
     await ok("POST", `${path}/return`, "O0001", { itemIds: [other], message: "지목 항목만 수정" });
     expect((await history()).entries).toHaveLength(3);
@@ -166,6 +168,57 @@ describe("item history from fixed review records", () => {
       expect((await response("GET", `/api/items/${item.id}/history`, account)).status).toBe(account ? 403 : 401);
     }
     expect((await response("GET", "/api/items/missing/history")).status).toBe(404);
+  });
+});
+
+describe("section history", () => {
+  test.each([false, true])("one multi-item return stays one step and links each matching item step in time order (legacy=%s)", async (legacy) => {
+    await compile();
+    const path = `/api/review-stages/${stage("office-planning")}/sections/${department.id}`;
+    clock++;
+    await ok("POST", `${path}/approve`, "O0001");
+    const other = department.items.lastWeek[0].id;
+    clock++;
+    await ok("POST", `${path}/return`, "O0001", { itemIds: [item.id, other], message: "근거 보완" });
+    if (legacy) {
+      const record = db.query<{ id: number; versions_json: string }, []>(
+        "SELECT id, versions_json FROM review_records ORDER BY id DESC LIMIT 1",
+      ).get()!;
+      const versionIds: number[] = JSON.parse(record.versions_json);
+      const sectionVersions = db.query<{ versions_json: string }, [number]>(
+        "SELECT versions_json FROM review_sections WHERE stage_id = ?",
+      ).get(stage("office-planning"))!.versions_json;
+      db.query("UPDATE review_records SET version_id = ?, versions_json = ? WHERE id = ?")
+        .run(versionIds[0], sectionVersions, record.id);
+      db.query(`INSERT INTO review_records (stage_id, section_id, version_id, action, actor_id, at, message, versions_json)
+        SELECT stage_id, section_id, ?, action, actor_id, at + 1, message, versions_json FROM review_records WHERE id = ?`)
+        .run(versionIds[1], record.id);
+    }
+    const result = await ok<SectionHistory>("GET", `/api/sections/${department.id}/history`);
+    expect(result.entries.map(entry => [entry.action, entry.reviewUnit, entry.actor.employeeNumber, entry.at]))
+      .toEqual([["submitted", "item", "R0001", clock - 2], ["approved", "section", "O0001", clock - 1],
+        ["returned", "section", "O0001", clock]]);
+    const returned = result.entries[2];
+    expect(returned.items.map(row => row.itemId).sort()).toEqual([item.id, other].sort());
+    for (const target of returned.items) {
+      const h = await ok<ItemHistory>("GET", `/api/items/${target.itemId}/history`);
+      expect(h.entries.at(-1)).toMatchObject({ id: target.entryId, message: "근거 보완", reviewUnit: "section" });
+      const current = await ok("GET", `/api/items/${target.itemId}`);
+      expect(current.review.messages.at(-1)).toMatchObject({ id: target.entryId, versionId: current.review.version!.id });
+    }
+  });
+  test("section history follows item content scope, sign-in, and selected week", async () => {
+    await compile();
+    for (const account of ["W1001", "R0001", "O0001", "D0001"]) {
+      expect((await ok<SectionHistory>("GET", `/api/sections/${department.id}/history`, account)).entries).toHaveLength(1);
+    }
+    for (const account of ["W2001", "O0002", ""]) {
+      expect((await response("GET", `/api/sections/${department.id}/history`, account)).status).toBe(account ? 403 : 401);
+    }
+    expect((await response("GET", "/api/sections/missing/history")).status).toBe(404);
+    await ok("POST", "/api/weeks/1/open-next", "D0001");
+    expect((await ok<SectionHistory>("GET", `/api/sections/${department.id}/history`)).entries).toEqual([]);
+    expect((await ok<SectionHistory>("GET", `/api/sections/${department.id}/history?weekId=1`)).entries).toHaveLength(1);
   });
 });
 

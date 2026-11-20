@@ -2,6 +2,7 @@
   color-scheme: light;
   --paper: #fff; --ink: #202321; --mute: #515751; --soft: #f4f5f2; --wash: #e8ebe6;
   --line: #c8ccc5; --edge: #858a83; --focus: #14589a;
+  --scrim: rgb(32 35 33 / .3);
   --empty: #515751; --writing: #205b87; --requested: #694693; --returned: #963d30; --approved: #286645;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
   --caption: .75rem; --small: .875rem; --body: 1rem; --h3: 1.25rem; --h2: 1.625rem; --h1: 2.25rem;
