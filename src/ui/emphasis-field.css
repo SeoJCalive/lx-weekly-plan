@@ -1,0 +1,34 @@
+.emphasis-box {position:relative;background:var(--paper);min-width:0}
+.emphasis-box[data-readonly=true] {background:var(--soft)}
+.emphasis-box :is(input,textarea),.emphasis-mirror {
+  font:400 var(--small)/1.55 var(--sans);
+  letter-spacing:normal;tab-size:8;text-indent:0;
+  padding:var(--s2) var(--s3);border:1px solid transparent;box-sizing:border-box;
+  white-space:pre;overflow-wrap:normal;word-break:normal;
+}
+.emphasis-box[data-multiline=true] :is(textarea,.emphasis-mirror) {
+  white-space:pre-wrap;overflow-wrap:break-word;
+}
+.emphasis-box :is(input,textarea) {
+  position:relative;display:block;background:transparent;color:transparent;
+  border-color:var(--edge);caret-color:var(--focus);
+}
+.emphasis-box :is(input,textarea):read-only {background:transparent;border-color:var(--line)}
+.emphasis-box :is(input,textarea)::selection {background:var(--ink);color:var(--paper)}
+.emphasis-box :is(input,textarea)::placeholder {color:var(--mute)}
+.emphasis-mirror {
+  position:absolute;top:0;left:0;overflow:hidden;pointer-events:none;color:var(--ink);
+}
+.emphasis-mirror::after {content:"\200b"}
+.emphasis-mirror [data-color=blue] {color:var(--doc-blue)}
+.emphasis-mirror [data-color=red] {color:var(--doc-red)}
+.emphasis-mirror [data-bold=true] {text-shadow:.3px 0 currentColor,-.3px 0 currentColor}
+.field-tools {display:flex;align-items:center;flex-wrap:wrap;gap:var(--s2)}
+.field-tools :is(.mark-tools,.insert-tools) {display:flex;align-items:center;gap:var(--s1)}
+.field-tools :is(.mark-tools,.insert-tools) button {min-height:var(--s8);padding:var(--s1);white-space:nowrap}
+.field-tools [data-mark=bold] {font-weight:700}
+.field-tools [data-mark=blue] {color:var(--doc-blue)}
+.field-tools [data-mark=red] {color:var(--doc-red)}
+.field-tools .mark-tools button:disabled {opacity:.55}
+.insert-tools {border-left:1px solid var(--line);padding-left:var(--s2)}
+.insert-tools button {min-width:var(--s6)}
