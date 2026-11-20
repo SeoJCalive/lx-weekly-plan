@@ -35,6 +35,7 @@ export interface ItemVersion {
   requestedBy: number;
   changed: boolean;
   content: WorkItem;
+  note: string | null;
 }
 export interface ReviewMessage {
   id: number;
@@ -43,6 +44,9 @@ export interface ReviewMessage {
   actorId: number;
   at: number;
   message: string;
+  reviewUnit: ReviewStage["reviewUnit"];
+  senderName: string;
+  senderTitle: string;
 }
 export interface ItemReview {
   version: ItemVersion | null;
@@ -172,6 +176,7 @@ export interface ItemHistoryEntry {
   versionNumber: number;
   content: WorkItem;
   message: string | null;
+  note: string | null;
   changes: ItemChange[];
 }
 export interface ItemHistory {

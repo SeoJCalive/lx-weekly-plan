@@ -10,9 +10,9 @@ export function itemHistory(db: Database, itemId: string): ItemHistory {
   const actors = people(db);
   const rows = db.query<{
     id: number; action: ItemHistoryEntry["action"]; at: number; actorId: number; stageId: number;
-    versionId: number; versionNumber: number; content_json: string; message: string | null;
+    versionId: number; versionNumber: number; content_json: string; message: string | null; note: string | null;
   }, [string]>(`SELECT r.id, r.action, r.at, r.actor_id AS actorId, r.stage_id AS stageId,
-    v.id AS versionId, v.number AS versionNumber, v.content_json, r.message
+    v.id AS versionId, v.number AS versionNumber, v.content_json, v.note, r.message
     FROM review_records r JOIN item_versions v ON v.item_id = ? AND
       (r.version_id = v.id OR (r.version_id IS NULL AND
         EXISTS (SELECT 1 FROM json_each(r.versions_json) WHERE value = v.id)))

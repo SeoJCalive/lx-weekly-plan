@@ -8,6 +8,7 @@ import { EmphasisField } from "./EmphasisField";
 import { TableEditor } from "./TableEditor";
 import { newTable } from "./table";
 import { names, Status } from "./Workflow";
+import { ReviewCard } from "./ReviewCard";
 
 const itemPath=(it:ItemView)=>`items/${encodeURIComponent(it.id)}`;
 export function Writing({person,week,units,departmentId,itemId,picker,history}:{person:Person;week:WeekView;units:Organisation[];departmentId?:string;itemId?:string;picker:ReactNode;history:(id:string)=>void}) {
@@ -34,6 +35,7 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   const [item,setItem]=useState<ItemView|undefined>(first), [draft,setDraft]=useState<ItemView|undefined>(first);
   const [label,setLabel]=useState(initial.labels.thisWeek), [editLabel,setEditLabel]=useState(false);
   const [busy,setBusy]=useState(false), [error,setError]=useState(""), [feedback,setFeedback]=useState("");
+  const [note,setNote]=useState("");
   const working=useRef(false), current=useRef<string|undefined>(first?.id), live=useRef(true), held=useRef<string|undefined>(undefined);
   const [online,setOnline]=useState(navigator.onLine);
   const [,setLastContact]=useState(Date.now());
@@ -45,11 +47,12 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
       ? d.items[it.category].map(x=>x.id===it.id?it:x) : [...d.items[it.category],it]}}));
   }
   function select(it:ItemView|undefined) {
+    if(current.current!==it?.id)setNote("");
     current.current=it?.id;held.current=it?.lock?.personId===person.id ? it.id : undefined;
     setItem(it);setDraft(it);
     if (it) {replace(it);sessionStorage.setItem(key,it.id);}
   }
-  function leaveOK() {return !dirty || confirm("이 항목의 저장하지 않은 변경을 버릴까요?");}
+  function leaveOK() {return (!dirty && !note.trim()) || confirm("이 항목의 저장하지 않은 변경을 버릴까요?");}
   async function action(fn:()=>Promise<void>) {
     if (working.current) return;
     working.current=true;setBusy(true);setError("");setFeedback("");
@@ -87,10 +90,10 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
     return ()=>{live.current=false;window.removeEventListener("lx:leave-writing",unload);window.removeEventListener("pagehide",unload);window.removeEventListener("online",network);window.removeEventListener("offline",network);};
   },[]);
   useEffect(()=>{
-    if(!dirty && !labelDirty) return;
+    if(!dirty && !labelDirty && !note.trim()) return;
     const warn=(e:BeforeUnloadEvent)=>e.preventDefault();
     window.addEventListener("beforeunload",warn);return ()=>window.removeEventListener("beforeunload",warn);
-  },[dirty,labelDirty]);
+  },[dirty,labelDirty,note]);
   useEffect(()=>{
     if(!item || !online)return;
     let cancelled=false;
@@ -148,7 +151,8 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
     if(!item)return;
     void action(async()=>{
       if(dirty)await save();
-      const updated=await api<ItemView>(itemPath(item)+"/"+method,"POST");
+      const updated=await api<ItemView>(itemPath(item)+"/"+method,"POST",method==="request-review"?{note}:undefined);
+      setNote("");
       select(updated);
       if(method==="withdraw")await open(updated);
       setFeedback(method==="withdraw"?"회수했습니다.":"검토를 요청했습니다.");
@@ -156,20 +160,20 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   }
   return <>{sections.length>1 && <label className="scope">작성할 처<select value={dept.id} disabled={busy} onChange={e=>{
     const next=e.target.value;
-    if ((!dirty && !labelDirty) || confirm("저장하지 않은 변경을 버리고 처를 바꿀까요?"))
+    if ((!dirty && !labelDirty && !note.trim()) || confirm("저장하지 않은 변경을 버리고 처를 바꿀까요?"))
       void action(async()=>{await release();onSection(next);});
   }}>{sections.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
-  <div className="workspace" data-unsaved={dirty || labelDirty}>
+  <div className="workspace" data-unsaved={dirty || labelDirty || !!note.trim()}>
     <section className="input-pane"><div className="section-head"><h2>업무 항목</h2>
       {person.departmentId===dept.id && <button disabled={busy || !online} onClick={add}>+ 항목 추가</button>}</div>
       <div className="categories" aria-label="업무 구분">{categories.map(c=><button key={c} aria-pressed={cat===c} disabled={busy}
         onClick={()=>{if(cat!==c)switchTo(c,dept.items[c][0]);}}>{names[c]} <small>{dept.items[c].length}</small></button>)}</div>
-      <ol className="items">{dept.items[cat].map((it,i)=><li key={it.id}><button aria-current={it.id===item?.id?"true":undefined}
+      <ol className="items">{dept.items[cat].map((it,i)=><li key={it.id} data-returned={it.status==="수정 요청"}><button aria-current={it.id===item?.id?"true":undefined}
         disabled={busy} onClick={()=>{if(it.id!==item?.id)switchTo(cat,it);}}><span className="num">{String(i+1).padStart(2,"0")}</span>
         <span>{plainText(it.title) || "제목 없는 항목"}</span><Status value={it.status}/></button></li>)}</ol>
       {!dept.items[cat].length && <p>아직 등록된 항목이 없습니다.</p>}
       {error && <p role="alert">{error}</p>}{!online && <p role="alert">오프라인입니다. 연결 후 저장하세요.</p>}
-      {item && draft && <section className="editor"><div className="section-head"><h2>{names[cat]} {number}번</h2>
+      {item && draft && <section className="editor" data-returned={item.status==="수정 요청"}><div className="section-head"><h2>{names[cat]} {number}번</h2>
         <div className="actions"><Status value={item.status}/><button disabled={busy} onClick={()=>history(item.id)}>항목 기록</button></div></div>
         <div className="edit-tools"><span role="status">{other ? item.lock!.message : editable ? `${person.name} 편집 중` : "읽기 전용"}</span>
           {item.status==="검토 요청" && item.actions.includes("withdraw") && <button disabled={busy || !online} onClick={()=>review("withdraw")}>회수</button>}
@@ -177,7 +181,11 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
             const renewed=await api<ItemView>(itemPath(item)+"/lock","POST");held.current=renewed.id;
             if(dirty){setItem(renewed);replace(renewed);}else select(renewed);
           })}>편집 시작</button> : <button className={mine?"":"primary"} disabled={busy || !online} onClick={assign}>{mine?"내 담당 해제":"내게 할당하고 편집"}</button>)}</div>
-        {message && message.versionId===item.review.version?.id && <p className="review-message"><b>수정 요청 사유</b>{message.message}</p>}
+        {message && message.versionId===item.review.version?.id && <ReviewCard key={`request:${message.id}:${item.status}`} kind="request"
+          message={message.message} at={message.at} sender={`${message.senderName} ${message.senderTitle}`}
+          reviewUnit={message.reviewUnit} open={item.status==="수정 요청"}/>}
+        {item.review.version?.note && <ReviewCard key={`note:${item.review.version.id}`} kind="note"
+          message={item.review.version.note} at={item.review.version.requestedAt} open/>}
         <form className="fields" onSubmit={e=>{e.preventDefault();if(editable && dirty)void action(save);}}>
           <EmphasisField key={`${draft.id}/title`} id="item-title" label="제목" lines={[draft.title]} readOnly={!editable || busy}
             change={([title])=>setDraft({...draft,title})}/>
@@ -197,9 +205,12 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
           <label>업무담당자<input value={draft.assignee} readOnly={!editable || busy}
             onChange={e=>setDraft({...draft,assignee:e.target.value})}/></label>
           {(editable || feedback || item.actions.includes("request-review")) && <div className="save-line"><span role="status">{dirty?"저장하지 않은 변경":feedback || "저장된 내용"}</span>
+            <div className="revision-submit">
+            {item.review.version && (item.actions.includes("request-review") || (editable && dirty)) && <label className="revision-note">수정 사유 (선택)
+              <input value={note} disabled={busy || !online} onChange={e=>setNote(e.target.value)}/></label>}
             <div className="actions">{editable && <button className={dirty?"primary":""} disabled={busy || !dirty}>중간 저장</button>}
             {(item.actions.includes("request-review") || (editable && dirty)) && <button type="button" className={dirty?"":"primary"}
-              disabled={busy || !online} onClick={()=>review("request-review")}>{dirty?"저장 후 검토 요청":item.review.version?"검토 재요청":"검토 요청"}</button>}</div></div>}
+              disabled={busy || !online} onClick={()=>review("request-review")}>{dirty?"저장 후 검토 요청":item.review.version?"검토 재요청":"검토 요청"}</button>}</div></div></div>}
         </form>
       </section>}
     </section>

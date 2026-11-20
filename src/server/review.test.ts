@@ -111,9 +111,14 @@ describe("item review states and fixed versions", () => {
     clock += 100;
     const returned = await action(item8, "return", "R0001", { message: "근거를 보완하세요." });
     expect(returned.status).toBe("수정 요청");
-    expect(returned.review.messages[0]).toMatchObject({ versionId: returned.review.version!.id, at: clock, message: "근거를 보완하세요." });
+    expect(returned.review.messages[0]).toMatchObject({
+      versionId: returned.review.version!.id, at: clock, message: "근거를 보완하세요.",
+      reviewUnit: "item", senderName: "시연기획처장", senderTitle: "처장",
+    });
     expect((await save(item8, "W1001", { ...content, notes: [[{ text: " * 보완 근거" }]] })).status).toBe("작성 중");
-    expect((await action(item8, "request-review")).review.version!.number).toBe(2);
+    const resubmitted = await action(item8, "request-review", "W1001", { note: "  근거를 보완했습니다.  " });
+    expect(resubmitted.review.version).toMatchObject({ number: 2, note: "근거를 보완했습니다." });
+    expect((await ok("GET", `/api/items/${item8}`, "R0001")).review.version?.note).toBe("근거를 보완했습니다.");
     expect((await action(item8, "approve", "R0001")).status).toBe("승인");
     await approveDepartment();
     const sent = await submit(department, "R0001");
@@ -129,9 +134,10 @@ describe("item review states and fixed versions", () => {
     expect(departmentView(final).reviews.every((row) => row.status === "승인")).toBe(true);
   });
   test("request review stores a full fixed snapshot with time and actor", async () => {
-    const current = await request();
+    await action(item8, "assignment");
+    const current = await action(item8, "request-review", "W1001", { note: "첫 제출의 사유는 무시" });
     expect(current.review.version).toMatchObject({
-      number: 1, requestedAt: clock, requestedBy: 5, content: { id: item8, title: current.title },
+      number: 1, requestedAt: clock, requestedBy: 5, content: { id: item8, title: current.title }, note: null,
     });
     expect(db.query("SELECT COUNT(*) AS count FROM item_versions").get()).toEqual({ count: 1 });
   });
@@ -287,7 +293,10 @@ describe("stage ordering and selective re-review", () => {
     const versionId = (await ok("GET", `/api/items/${item8}`)).review.version!.id;
     await sectionAction("office-planning", department, "return", "O0001", { itemIds: [item8], message: "실 검토 보완" });
     expect((await ok("GET", `/api/items/${item8}`))).toMatchObject({
-      status: "수정 요청", review: { messages: [{ versionId, stageId: stage("office-planning"), message: "실 검토 보완" }] },
+      status: "수정 요청", review: { messages: [{
+        versionId, stageId: stage("office-planning"), message: "실 검토 보완",
+        reviewUnit: "section", senderName: "시연기획실장", senderTitle: "실장",
+      }] },
     });
     expect((await ok("GET", `/api/items/${sibling}`)).status).toBe("승인");
   });

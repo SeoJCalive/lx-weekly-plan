@@ -67,6 +67,36 @@ afterEach(() => {
 });
 
 describe("seed and startup", () => {
+  test("an existing database gains version notes while retaining its submissions", async () => {
+    const item = await prepare();
+    await call("PUT", `/api/items/${item.id}`, first, content);
+    await call("POST", `/api/items/${item.id}/request-review`, first);
+    db.exec("ALTER TABLE item_versions DROP COLUMN note");
+    db.close();
+    db = openDatabase(join(directory, "test.sqlite"));
+    handler = createApp({ db, templateBytes, now: () => clock });
+    const result = await call("GET", `/api/items/${item.id}`, first);
+    expect(result.data.review.version).toMatchObject({ number: 1, note: null, content: { title: content.title } });
+  });
+  test.each([undefined, "", " \n "])("a resubmission with an empty note (%j) stores no note", async (note) => {
+    const item = await prepare();
+    await call("PUT", `/api/items/${item.id}`, first, content);
+    await call("POST", `/api/items/${item.id}/request-review`, first);
+    await call("POST", `/api/items/${item.id}/withdraw`, first);
+    const result = await call("POST", `/api/items/${item.id}/request-review`, first, { note });
+    expect(result.response.status).toBe(200);
+    expect(result.data.review.version).toMatchObject({ number: 2, note: null });
+  });
+  test("a resubmission rejects a note of the wrong type without adding a version", async () => {
+    const item = await prepare();
+    await call("PUT", `/api/items/${item.id}`, first, content);
+    expect((await call("POST", `/api/items/${item.id}/request-review`, first, { note: 2 })).response.status).toBe(400);
+    expect((await call("GET", `/api/items/${item.id}`, first)).data.review.version).toBeNull();
+    await call("POST", `/api/items/${item.id}/request-review`, first);
+    await call("POST", `/api/items/${item.id}/withdraw`, first);
+    expect((await call("POST", `/api/items/${item.id}/request-review`, first, { note: 2 })).response.status).toBe(400);
+    expect((await call("GET", `/api/items/${item.id}`, first)).data.review.version?.number).toBe(1);
+  });
   test("database round-trips the exact generator input", () => {
     expect(readPlan(db)).toEqual(seed);
   });

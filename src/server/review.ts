@@ -77,8 +77,8 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
   }
   function latest(id: string) {
     return db.query<{
-      id: number; number: number; content_json: string; requestedAt: number; requestedBy: number; changed: number;
-    }, [string]>(`SELECT id, number, content_json, requested_at AS requestedAt,
+      id: number; number: number; content_json: string; note: string | null; requestedAt: number; requestedBy: number; changed: number;
+    }, [string]>(`SELECT id, number, content_json, note, requested_at AS requestedAt,
       requested_by AS requestedBy, changed FROM item_versions WHERE item_id = ? ORDER BY number DESC LIMIT 1`).get(id);
   }
   function itemReview(id: string): ItemReview {
@@ -86,10 +86,12 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
     return {
       version: version ? {
         id: version.id, number: version.number, requestedAt: version.requestedAt,
-        requestedBy: version.requestedBy, changed: !!version.changed, content: JSON.parse(version.content_json),
+        requestedBy: version.requestedBy, changed: !!version.changed, content: JSON.parse(version.content_json), note: version.note,
       } : null,
       messages: db.query<ItemReview["messages"][number], [string]>(`SELECT r.id, r.version_id AS versionId,
-        r.stage_id AS stageId, r.actor_id AS actorId, r.at, r.message FROM review_records r
+        r.stage_id AS stageId, r.actor_id AS actorId, r.at, r.message,
+        stage.review_unit AS reviewUnit, p.name AS senderName, p.title AS senderTitle FROM review_records r
+        JOIN review_stages stage ON stage.id = r.stage_id JOIN people p ON p.id = r.actor_id
         JOIN item_versions v ON v.id = r.version_id WHERE v.item_id = ? AND r.action = 'returned'
         ORDER BY r.id`).all(id),
     };
@@ -141,13 +143,16 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
     db.transaction(() => {
       let version = latest(id);
       if (action === "request-review") {
+        if (input.note !== undefined && typeof input.note !== "string")
+          throw new ApiFailure(400, "수정 사유는 문자열이어야 합니다.");
+        const note = version && typeof input.note === "string" ? input.note.trim() || null : null;
         const content: WorkItem = JSON.parse(row.content_json);
         if (![...content.title, ...content.content.flat(), ...content.notes.flat()].some((span) => span.text.trim()) &&
           !content.tables.length) throw new ApiFailure(409, "내용을 저장한 뒤 검토를 요청하세요.");
         const inserted = db.query(`INSERT INTO item_versions
-          (item_id, number, content_json, requested_at, requested_by, changed) VALUES (?, ?, ?, ?, ?, ?)`)
+          (item_id, number, content_json, requested_at, requested_by, changed, note) VALUES (?, ?, ?, ?, ?, ?, ?)`)
           .run(id, (version?.number ?? 0) + 1, row.content_json, now(), person.id,
-            version && (version.changed || version.content_json !== row.content_json) ? 1 : 0);
+            version && (version.changed || version.content_json !== row.content_json) ? 1 : 0, note);
         version = latest(id)!;
         record(stage.id, row.sectionId, Number(inserted.lastInsertRowid), "requested", person, [version.id]);
         db.query("UPDATE items SET status = '검토 요청' WHERE id = ?").run(id);

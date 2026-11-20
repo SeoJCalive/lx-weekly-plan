@@ -74,7 +74,7 @@ export function openDatabase(path = databasePath): Database {
     );
     CREATE TABLE IF NOT EXISTS item_versions (
       id INTEGER PRIMARY KEY, item_id TEXT NOT NULL REFERENCES items(id),
-      number INTEGER NOT NULL, content_json TEXT NOT NULL,
+      number INTEGER NOT NULL, content_json TEXT NOT NULL, note TEXT,
       requested_at INTEGER NOT NULL, requested_by INTEGER NOT NULL REFERENCES people(id),
       changed INTEGER NOT NULL CHECK(changed IN (0,1)), UNIQUE(item_id, number)
     );
@@ -116,6 +116,9 @@ export function openDatabase(path = databasePath): Database {
   }
   if (!db.query<{ name: string }, []>("PRAGMA table_info(weeks)").all().some((column) => column.name === "deadline_at")) {
     db.exec("ALTER TABLE weeks ADD COLUMN deadline_at INTEGER");
+  }
+  if (!db.query<{ name: string }, []>("PRAGMA table_info(item_versions)").all().some((column) => column.name === "note")) {
+    db.exec("ALTER TABLE item_versions ADD COLUMN note TEXT");
   }
   for (const table of ["items", "assignments", "edit_locks", "sections", "review_sections", "review_records", "weeks", "board_posts"]) {
     for (const action of ["INSERT", "UPDATE", "DELETE"]) db.exec(`

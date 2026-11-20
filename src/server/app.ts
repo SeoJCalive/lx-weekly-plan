@@ -234,7 +234,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       const reviewMatch = /^\/api\/items\/([^/]+)\/(request-review|withdraw|approve|return)$/.exec(path);
       if (reviewMatch && method === "POST") {
         const [, id, action] = reviewMatch;
-        review.itemAction(id, action as ItemAction, person, action === "return" ? await body(request) : {});
+        const input = (action === "return" || action === "request-review") && request.body ? await body(request) : {};
+        review.itemAction(id, action as ItemAction, person, input);
         return json(itemView(itemRow(id), person));
       }
       const stageMatch = /^\/api\/review-stages\/([1-9]\d*)\/submit$/.exec(path);

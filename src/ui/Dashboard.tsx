@@ -4,6 +4,7 @@ import { categories, plainText, type WorkItem } from "../shared/weekly-plan";
 import { api } from "./api";
 import { Nested, Preview, Runs } from "./Preview";
 import { Heading, names, type Place, Status } from "./Workflow";
+import { ReviewCard } from "./ReviewCard";
 
 function Decision({path,actions,items,done,weekId}:{path:string;actions:readonly string[];items?:ItemView[];done:(text:string)=>void;weekId?:number}) {
   const [returning,setReturning]=useState(false),[message,setMessage]=useState(""),[ids,setIds]=useState<string[]>([]);
@@ -33,7 +34,8 @@ function Decision({path,actions,items,done,weekId}:{path:string;actions:readonly
 function ItemContent({item}:{item:ItemView}) {
   const v=item.review.version,submitted=v && (item.status==="검토 요청" || item.status==="승인" || item.status==="수정 요청");
   const text=submitted?v.content:item;
-  return <VersionContent text={text} label={submitted?`검토 제출본 · ${v.number}차`:"현재 작성본"}/>;
+  return <><VersionContent text={text} label={submitted?`검토 제출본 · ${v.number}차`:"현재 작성본"}/>
+    {submitted && v.note && <ReviewCard kind="note" message={v.note} at={v.requestedAt} open/>}</>;
 }
 export function VersionContent({text,label}:{text:WorkItem;label?:string}) {
   return <div className="review-copy">
@@ -95,6 +97,11 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
           {dept.items.filter(i=>i.changed).map(i=><p className="change-note" key={i.id}>변경 항목 · {plainText(items.find(it=>it.id===i.id)!.title)}</p>)}
           <Decision key={`${dept.departmentId}:${stage?.id}:${sectionReview.submittedAt}`} path={`review-stages/${stage?.id}/sections/${dept.departmentId}`}
             actions={sectionReview.actions} items={items} done={done} weekId={week.id}/>
+          {categories.flatMap(c=>section.items[c]).map(it=>{
+            const v=it.review.version;
+            return v?.note && <ReviewCard key={v.id} kind="note" message={v.note} at={v.requestedAt}
+              context={plainText(v.content.title)} open/>;
+          })}
           <Preview dept={section} week={week} history={history}/>
         </>: <div className="review-list">{categories.map(c=><section key={c}><h3>{names[c]}</h3>
           {source.items[c].length===0 && <p>등록된 항목이 없습니다.</p>}

@@ -96,20 +96,21 @@ describe("item history from fixed review records", () => {
     await save();
     await save({ ...input, notes: [[{ text: " * 중간 저장" }]] });
     expect((await history()).entries).toEqual([]);
-    await action("request-review");
+    await action("request-review", "W1001", { note: "첫 제출 무시" });
     await action("withdraw");
     await save();
-    await action("request-review");
+    await action("request-review", "W1001", { note: "회수 후 다시 확인" });
     clock += 1;
     await action("return", "R0001", { message: "근거를 보완하세요." });
     await save({ ...input, notes: [[{ text: " * 보완 근거" }]] });
     clock += 1;
-    await action("request-review");
+    await action("request-review", "W1001", { note: "  근거 보완  " });
     await action("approve", "R0001");
     const result = await history();
     expect(result.entries.map((entry) => entry.action))
       .toEqual(["requested", "requested", "returned", "requested", "approved"]);
     expect(result.entries.map((entry) => entry.versionNumber)).toEqual([1, 2, 2, 3, 3]);
+    expect(result.entries.map((entry) => entry.note)).toEqual([null, "회수 후 다시 확인", "회수 후 다시 확인", "근거 보완", "근거 보완"]);
     expect(result.entries[2]).toMatchObject({
       at: clock - 1, actor: { employeeNumber: "R0001" }, message: "근거를 보완하세요.",
       content: { notes: input.notes },
