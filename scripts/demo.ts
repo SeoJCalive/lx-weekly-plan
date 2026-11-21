@@ -51,7 +51,9 @@ export async function buildDemo(db: Database, templateBytes: Uint8Array): Promis
   async function amend(week: number, id: string, message: string, note?: string) {
     const item = readPlan(db, week).departments.flatMap(d => Object.values(d.items).flat()).find(i => i.id === id)!;
     const account = writer(id);
-    await save(item, account, { ...item, content: [...item.content, [{ text: message }]] });
+    const content = structuredClone(item.content);
+    content[0].at(-1)!.text = message;
+    await save(item, account, { ...item, content });
     review(week).itemAction(id, "request-review", person(account), note ? { note } : {});
   }
   async function writeWeek(week: number, monday: number) {
@@ -69,7 +71,9 @@ export async function buildDemo(db: Database, templateBytes: Uint8Array): Promis
     for (const result of demoResults.filter(row => row.week === week)) {
       const department = readPlan(db, week).departments.find(d => d.name === result.department)!;
       const item = department.items.lastWeek.find(i => i.title.map(s => s.text).join("").trim() === result.title)!;
-      await save(item, writer(item.id), { ...item, content: result.content });
+      const content = structuredClone(item.content);
+      content[0].at(-1)!.text = result.line;
+      await save(item, writer(item.id), { ...item, content });
     }
   }
   async function requestAll(week: number, monday: number) {
