@@ -55,7 +55,9 @@ export async function buildDemo(db: Database, templateBytes: Uint8Array): Promis
     review(week).itemAction(id, "request-review", person(account), note ? { note } : {});
   }
   async function writeWeek(week: number, monday: number) {
-    at(monday, 9, week === 3 ? 0 : 20);
+    // The current week is prepared on the Friday the previous week was published, so its
+    // records stay earlier than anything clicked live, whenever the demo is shown.
+    if (week === 3) at(20, 14); else at(monday, 9, 20);
     for (const content of demoContent.filter(row => row.week === week)) {
       const department = readPlan(db, week).departments.find(d => d.name === content.department)!;
       const item = await call("POST", `items?weekId=${week}`, content.writer, {
@@ -71,7 +73,7 @@ export async function buildDemo(db: Database, templateBytes: Uint8Array): Promis
     }
   }
   async function requestAll(week: number, monday: number) {
-    at(monday, week === 3 ? 9 : 15, week === 3 ? 40 : 0);
+    if (week === 3) at(20, 14, 40); else at(monday, 15);
     for (const department of readPlan(db, week).departments) {
       for (const [position, item] of Object.values(department.items).flat().entries()) {
         if (!db.query("SELECT 1 FROM assignments WHERE item_id = ?").get(item.id)) {
@@ -172,19 +174,19 @@ export async function buildDemo(db: Database, templateBytes: Uint8Array): Promis
   await requestAll(3, 23);
   const departments = readPlan(db, 3).departments;
   const live = departments[1].items.thisWeek[0];
-  at(23, 10);
+  at(20, 15);
   approveItems(3, live.id);
-  at(23, 10, 30);
+  at(20, 15, 30);
   for (const department of departments.filter(d => d.id !== departments[1].id)) submitDepartment(3, department.id);
-  at(23, 11);
+  at(20, 16);
   approveOffices(3);
-  at(23, 11, 20);
+  at(20, 16, 20);
   review(3).itemAction(live.id, "return", person("R0002"), { message: liveReturnMessage });
   for (const account of cookies.keys()) await call("DELETE", "session", account);
 }
 
 export function demoSummary(db: Database) {
-  const now = () => Date.UTC(2026, 10, 23, 2, 20);
+  const now = () => Date.UTC(2026, 10, 20, 7, 20);
   const director = people(db).find(p => p.employeeNumber === "D0001")!;
   return {
     weeks: db.query("SELECT id, metadata_json, is_current FROM weeks ORDER BY id").all(),

@@ -38,7 +38,7 @@ test("시연 주차·배포 차수·최종 승인·수정 요청과 재생성 �
         expect(returned).toEqual([{ employee_number: "W2001", name: "예산법무처" }]);
         const times = db.query<{ first: number; last: number }, []>(`SELECT MIN(r.at) AS first, MAX(r.at) AS last
           FROM review_records r JOIN sections s ON s.id = r.section_id WHERE s.week_id = 3`).get()!;
-        expect(times).toEqual({ first: Date.UTC(2026, 10, 23, 0, 40), last: Date.UTC(2026, 10, 23, 2, 20) });
+        expect(times).toEqual({ first: Date.UTC(2026, 10, 20, 5, 40), last: Date.UTC(2026, 10, 20, 7, 20) });
         const counts = Object.fromEntries(["weeks", "items", "assignments", "item_versions", "review_records",
           "review_sections", "board_posts", "week_rollovers", "sessions", "edit_locks"].map(table =>
           [table, db.query(`SELECT COUNT(*) AS count FROM ${table}`).get()]));
