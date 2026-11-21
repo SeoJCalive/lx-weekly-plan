@@ -16,7 +16,7 @@ export function changedCases(): WeeklyPlan[] {
     content: [[{ text: " ○ (내용) 추가 항목의 본문입니다." }]],
     notes: [[{ text: "   * 새 항목의 부가 설명" }]],
     tables: [],
-    assignee: "시연 담당자",
+    assignee: "나현수 담당자",
   });
   department.items.thisWeek.splice(1, 1);
 

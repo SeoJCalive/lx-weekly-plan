@@ -258,11 +258,34 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     child(body, "hp:subList").children = output;
     if (item.assignee !== old.assignee) {
       const p = clone(paragraphs(assignee)[0]);
-      p.children = [
-        element('<hp:run charPrIDRef="36"><hp:t> \uf0d8 </hp:t></hp:run>'),
-        element('<hp:run charPrIDRef="34"><hp:t>(업무담당자) </hp:t></hp:run>'),
-        element(`<hp:run charPrIDRef="36"><hp:t>${escapeXml(item.assignee)}</hp:t></hp:run>`),
-      ];
+      const texts = children(p, "hp:run").flatMap((run) => children(run, "hp:t"));
+      const originalText = texts.map(textContent).join("");
+      const start = originalText.endsWith(old.assignee) ? originalText.length - old.assignee.length : -1;
+      const requestedText = originalText.slice(0, start) + item.assignee + originalText.slice(start + old.assignee.length);
+      let position = 0;
+      const keepRuns = item.assignee.length === old.assignee.length && start >= 0 &&
+        texts.every(text => text.children.every(c => {
+          const value = textContent({ ...text, children: [c] }), from = position;
+          position += value.length;
+          return typeof c === "string" || value === requestedText.slice(from, position);
+        }));
+      if (keepRuns) {
+        let offset = 0;
+        for (const text of texts) text.children = text.children.map((c) => {
+          const value = textContent({ ...text, children: [c] });
+          const from = Math.max(0, start - offset), to = Math.min(value.length, start + old.assignee.length - offset);
+          const replacement = item.assignee.slice(offset + from - start, offset + to - start);
+          offset += value.length;
+          return typeof c === "string" && from < to
+            ? escapeXml(value.slice(0, from) + replacement + value.slice(to)) : c;
+        });
+      } else {
+        p.children = [
+          element('<hp:run charPrIDRef="36"><hp:t> \uf0d8 </hp:t></hp:run>'),
+          element('<hp:run charPrIDRef="34"><hp:t>(업무담당자) </hp:t></hp:run>'),
+          element(`<hp:run charPrIDRef="36"><hp:t>${escapeXml(item.assignee)}</hp:t></hp:run>`),
+        ];
+      }
       child(assignee, "hp:subList").children = [p];
     }
     if (isNew) { freshIds(body); freshIds(assignee); }
@@ -331,7 +354,13 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     replaceText(nodes[0], `[${department.parentOffice ? `${department.parentOffice}_` : ""}${department.name}]`);
     const main = renderOuter(source.main, [department.items.lastWeek, department.items.thisWeek], 2);
     const ongoing = renderOuter(source.ongoing, [department.items.ongoing], 1);
-    layoutChanged ||= !equal(department.items, source.data.items);
+    const layoutItems = Object.fromEntries(Object.entries(department.items).map(([category, items]) => [
+      category, items.map((item, index) => {
+        const old = source.data.items[category as keyof typeof department.items][index];
+        return old && item.assignee.length === old.assignee.length ? { ...item, assignee: old.assignee } : item;
+      }),
+    ]));
+    layoutChanged ||= !equal(layoutItems, source.data.items);
     const mainCells = tableCells(main);
     for (const [index, text] of [
       [0, `전주 실적${data.lastWeekPeriod}`], [1, `금주 계획${data.thisWeekPeriod}`],

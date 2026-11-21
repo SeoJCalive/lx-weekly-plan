@@ -1,23 +1,78 @@
 import { describe, expect, test } from "bun:test";
-import { strFromU8, unzipSync } from "fflate";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { seed } from "../shared/seed";
 import { changedCases } from "../../scripts/export-cases";
 import { generateHwpx } from "./hwpx";
 import { paragraphText, paragraphs, readTemplate, tableCells } from "./template";
-import { child, children, descendants, parseXml, serialize } from "./xml";
+import { child, children, descendants, element, parseXml, serialize } from "./xml";
 
 const template = new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer());
 const generate = (data = seed) => generateHwpx(data, template);
 const section = (bytes: Uint8Array) => child(parseXml(strFromU8(unzipSync(bytes)["Contents/section0.xml"])), "hs:sec");
+const nameMapping = [...(await Bun.file("docs/프로젝트_정의서.md").text()).matchAll(/([가-힣]{3})→([가-힣]{3})/g)];
+const fictionalNames = (text: string) =>
+  nameMapping.reduce((result, [, original, fictional]) => result.replaceAll(original, fictional), text);
 
 describe("weekly plan hwpx", () => {
   test("one-off seed retains all source data, including duplicate department content", () => {
-    expect(seed).toEqual(readTemplate(template).data);
+    expect(seed).toEqual(JSON.parse(fictionalNames(JSON.stringify(readTemplate(template).data))));
   });
-  test("the seed changes only the automatically assigned digit in section XML", () => {
-    const original = strFromU8(unzipSync(template)["Contents/section0.xml"]);
+  test("the seed retains section XML apart from fictional assignees and the automatically assigned digit", () => {
+    const expected = strFromU8(unzipSync(template)["Contents/section0.xml"]);
     const generated = strFromU8(unzipSync(generate())["Contents/section0.xml"]);
-    expect(generated).toBe(original.replace("<hp:t> 4</hp:t>", "<hp:t> 3</hp:t>"));
+    expect(generated).toBe(fictionalNames(expected).replace("<hp:t> 4</hp:t>", "<hp:t> 3</hp:t>"));
+  });
+  test("same-length assignees retain every template run while different lengths rebuild three runs", () => {
+    const data = structuredClone(seed);
+    const item = data.departments[0].items.thisWeek[0];
+    const originalTemplate = readTemplate(template), sameLengthTemplate = readTemplate(generate(data));
+    const original = paragraphs(originalTemplate.items.get(item.id)!.assignee)[0];
+    const sameLength = paragraphs(sameLengthTemplate.items.get(item.id)!.assignee)[0];
+    const flows = (t: typeof originalTemplate) => t.departments.flatMap(department =>
+      [department.main, department.ongoing].map(table => child(table, "hp:pos").attributes.flowWithText));
+    const styles = (p: typeof original) => children(p, "hp:run").map(run => run.attributes.charPrIDRef);
+    expect(children(sameLength, "hp:run")).toHaveLength(children(original, "hp:run").length);
+    expect(styles(sameLength)).toEqual(styles(original));
+    expect(serialize(sameLength)).toBe(fictionalNames(serialize(original)));
+    expect(flows(sameLengthTemplate)).toEqual(flows(originalTemplate));
+    item.assignee = "새 담당자";
+    const differentLengthTemplate = readTemplate(generate(data));
+    const differentLength = paragraphs(differentLengthTemplate.items.get(item.id)!.assignee)[0];
+    expect(children(differentLength, "hp:run")).toHaveLength(3);
+    expect(styles(differentLength)).toEqual(["36", "34", "36"]);
+    expect(paragraphText(differentLength)).toBe(" \uf0d8 (업무담당자) 새 담당자");
+    expect(flows(differentLengthTemplate)).toEqual(Array(flows(originalTemplate).length).fill("1"));
+    const spacedData = structuredClone(seed), spacedItem = spacedData.departments[0].items.thisWeek[1];
+    const spacedOriginal = paragraphs(originalTemplate.items.get(spacedItem.id)!.assignee)[0];
+    const mapped = readTemplate(generate(spacedData)).items.get(spacedItem.id)!;
+    const mappedParagraph = paragraphs(mapped.assignee)[0];
+    expect(styles(mappedParagraph)).toEqual(styles(spacedOriginal));
+    expect(children(mappedParagraph, "hp:run")).toHaveLength(children(spacedOriginal, "hp:run").length);
+    expect(descendants(mappedParagraph, "hp:fwSpace")).toHaveLength(2);
+    expect(serialize(mappedParagraph)).toBe(fictionalNames(serialize(spacedOriginal)));
+    expect(mapped.data.assignee).toBe(spacedItem.assignee);
+    spacedItem.assignee = "민경석 / 하정민 팀장, 고영진 과장";
+    expect(spacedItem.assignee.length).toBe(mapped.data.assignee.length);
+    const rebuilt = readTemplate(generate(spacedData)).items.get(spacedItem.id)!;
+    const rebuiltParagraph = paragraphs(rebuilt.assignee)[0];
+    expect(rebuilt.data.assignee).toBe(spacedItem.assignee);
+    expect(styles(rebuiltParagraph)).toEqual(["36", "34", "36"]);
+    expect(children(rebuiltParagraph, "hp:run")).toHaveLength(3);
+    expect(descendants(rebuiltParagraph, "hp:fwSpace")).toHaveLength(0);
+  });
+  test("an assignee matching its label changes only the paragraph suffix", () => {
+    const fixture = readTemplate(template);
+    const id = seed.departments[0].items.lastWeek[0].id;
+    const p = paragraphs(fixture.items.get(id)!.assignee)[0];
+    p.children = [element('<hp:run charPrIDRef="36"><hp:t> \uf0d8 (업무담당자) 업무담당자</hp:t></hp:run>')];
+    fixture.entries["Contents/section0.xml"] = strToU8(serialize(fixture.document));
+    const fixtureBytes = zipSync(fixture.entries), data = readTemplate(fixtureBytes).data;
+    const item = data.departments[0].items.lastWeek[0];
+    expect(item.assignee).toBe("업무담당자");
+    item.assignee = "검검검검검";
+    const result = readTemplate(generateHwpx(data, fixtureBytes)).items.get(id)!;
+    expect(result.data.assignee).toBe(item.assignee);
+    expect(paragraphText(paragraphs(result.assignee)[0])).toBe(" \uf0d8 (업무담당자) 검검검검검");
   });
   test("new week periods retain the form's separate heading and date typography", () => {
     const data = {

@@ -113,7 +113,7 @@ describe("item review states and fixed versions", () => {
     expect(returned.status).toBe("수정 요청");
     expect(returned.review.messages[0]).toMatchObject({
       versionId: returned.review.version!.id, at: clock, message: "근거를 보완하세요.",
-      reviewUnit: "item", senderName: "시연기획처장", senderTitle: "처장",
+      reviewUnit: "item", senderName: "최영수", senderTitle: "처장",
     });
     expect((await save(item8, "W1001", { ...content, notes: [[{ text: " * 보완 근거" }]] })).status).toBe("작성 중");
     const resubmitted = await action(item8, "request-review", "W1001", { note: "  근거를 보완했습니다.  " });
@@ -295,7 +295,7 @@ describe("stage ordering and selective re-review", () => {
     expect((await ok("GET", `/api/items/${item8}`))).toMatchObject({
       status: "수정 요청", review: { messages: [{
         versionId, stageId: stage("office-planning"), message: "실 검토 보완",
-        reviewUnit: "section", senderName: "시연기획실장", senderTitle: "실장",
+        reviewUnit: "section", senderName: "서민철", senderTitle: "실장",
       }] },
     });
     expect((await ok("GET", `/api/items/${sibling}`)).status).toBe("승인");

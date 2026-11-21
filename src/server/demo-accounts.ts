@@ -18,18 +18,20 @@ const writers = [
   [["나현수", "책임"], ["방지원", "선임"], ["권태식", "과장"]],
   [["안재형", "과장"], ["허윤정", "과장"], ["우성민", "대리"]],
   [["설다은", "대리"], ["함도현", "대리"], ["금현우", "선임"]],
-  [["시연보안가", "과장"], ["시연보안나", "대리"], ["시연보안다", "선임"]],
-  [["시연성과가", "과장"], ["시연성과나", "대리"], ["시연성과다", "선임"]],
+  [["양세진", "과장"], ["유미란", "대리"], ["차현우", "선임"]],
+  [["홍석진", "과장"], ["노은지", "대리"], ["백승우", "선임"]],
 ];
+const officeReviewers = ["서민철", "강지훈"];
+const departmentReviewers = ["최영수", "문성일", "배준호", "임동혁", "권혜진"];
 export const demoAccounts: DemoAccount[] = [
-  { employeeNumber: "D0001", name: "시연본부장", title: "본부장", role: "director", organisationId: headquarters.id },
+  { employeeNumber: "D0001", name: "윤재석", title: "본부장", role: "director", organisationId: headquarters.id },
   ...offices.map((office, i): DemoAccount => ({
-    employeeNumber: `O000${i + 1}`, name: `시연${i === 0 ? "기획" : "디지털"}실장`,
+    employeeNumber: `O000${i + 1}`, name: officeReviewers[i],
     title: "실장", role: "officeReviewer", organisationId: office.id,
   })),
   ...seed.departments.flatMap((department, i): DemoAccount[] => [
     {
-      employeeNumber: `R000${i + 1}`, name: `시연${department.name}장`, title: "처장",
+      employeeNumber: `R000${i + 1}`, name: departmentReviewers[i], title: "처장",
       role: "departmentReviewer", organisationId: department.id,
     },
     ...writers[i].map(([name, title], j): DemoAccount => ({
