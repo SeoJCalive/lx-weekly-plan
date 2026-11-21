@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "bun --hot src/server/index.ts",
     "reset": "bun scripts/reset.ts",
+    "demo": "bun scripts/demo.ts",
     "export": "bun src/server/export.ts",
     "test": "bun test",
     "typecheck": "bun check --no-script && bun check --no-script --project src/ui/tsconfig.json",
