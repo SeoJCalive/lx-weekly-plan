@@ -28,8 +28,8 @@ label input,label select,label textarea {font-weight:400}
 .mast>strong::before {content:"";flex:none;height:.9em;aspect-ratio:128/56;background:url("./lx-logo.png") center/contain no-repeat}
 .mast nav,.identity,.section-head,.edit-tools,.save-line,.label-tools,.label-tools form {display:flex;align-items:center;gap:var(--s3)}
 .mast nav {gap:var(--s1)}
-.mast nav :is(a,button) {background:transparent;border:0;min-height:36px;padding:var(--s1) var(--s3);display:inline-flex;align-items:center;font-size:var(--small);white-space:nowrap;text-decoration:none}
-.mast nav [aria-current="page"] {background:var(--ink);color:var(--paper);font-weight:700}
+.mast nav :is(a,button) {background:transparent;border:0;border-bottom:2px solid transparent;min-height:36px;padding:var(--s1) var(--s3);display:inline-flex;align-items:center;font-size:var(--small);white-space:nowrap;text-decoration:none}
+.mast nav [aria-current="page"] {background:transparent;color:var(--nav-current);border-bottom-color:var(--nav-current);font-weight:700}
 .mast nav .count {margin-left:var(--s2);min-width:var(--s5);padding:0 var(--s1);background:var(--status-ink);color:var(--paper);font-size:var(--caption);font-weight:700;font-variant-numeric:tabular-nums;line-height:var(--s5);text-align:center}
 .identity {margin-left:auto;font-size:var(--small);flex-wrap:wrap}
 .identity span,.context,.week span,.edit-tools>span,.label-tools>span,.save-line span,.table-note {color:var(--mute);font-size:var(--small)}
