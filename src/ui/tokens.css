@@ -1,15 +1,4 @@
-@font-face {
-  font-family: "Pretendard GOV"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("./fonts/PretendardGOV-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Pretendard GOV"; font-style: normal; font-weight: 600; font-display: swap;
-  src: url("./fonts/PretendardGOV-SemiBold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Pretendard GOV"; font-style: normal; font-weight: 700; font-display: swap;
-  src: url("./fonts/PretendardGOV-Bold.woff2") format("woff2");
-}
+@import "./fonts/pretendard-gov-dynamic-subset.css";
 :root {
   color-scheme: light;
   --paper: #fff; --ink: #202321; --mute: #515751; --soft: #f8f8f8; --wash: #efefef;
