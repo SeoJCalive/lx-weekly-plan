@@ -5,14 +5,14 @@ import { api, roles } from "./api";
 import { SignIn } from "./SignIn";
 import { Writing } from "./Writing";
 import { Dashboard } from "./Dashboard";
-import { Todos, WeekPicker, type Place } from "./Workflow";
+import { WeekPicker, type Place } from "./Workflow";
 import { Publications, Release } from "./Publishing";
 import { Deadline } from "./Deadline";
 import { Records } from "./Records";
 import { HistoryDialog } from "./HistoryDialog";
 
 function Screen({person,units,place,go}:{person:Person;units:Organisation[];place:Place;go:(p:Place)=>void}) {
-  const [data,setData]=useState<{week:WeekView;board?:DashboardView;todos?:TodoView;posts?:BoardPost[]}>();
+  const [data,setData]=useState<{week:WeekView;board?:DashboardView;posts?:BoardPost[]}>();
   const [weeks,setWeeks]=useState<WeekSummary[]>([]);
   const [deadline,setDeadline]=useState<DeadlineView>(),[stats,setStats]=useState<StatisticsView>();
   const [error,setError]=useState(""),[change,setChange]=useState(0);
@@ -38,13 +38,11 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
           }
           interval=3000;
         }else{
-          const todos=place.page==="첫 화면"?await api<TodoView>("todos"+q):undefined;
-          const summary=todos ?? await api<DashboardView>("dashboard"+q);
-          interval=summary.pollIntervalMs;
-          if(!stopped && summary.revision!==revision){
-            const [week,board,posts]=await Promise.all([api<WeekView>("week"+q),"stages" in summary?summary:api<DashboardView>("dashboard"+q),
-              person.role==="director"?api<BoardPost[]>("board"):undefined]);
-            if(!stopped){revision=summary.revision;setData({week,board,todos,posts});}
+          const board=await api<DashboardView>("dashboard"+q);
+          interval=board.pollIntervalMs;
+          if(!stopped && board.revision!==revision){
+            const [week,posts]=await Promise.all([api<WeekView>("week"+q),person.role==="director"?api<BoardPost[]>("board"):undefined]);
+            if(!stopped){revision=board.revision;setData({week,board,posts});}
           }
         }
         if(!stopped)setError("");
@@ -65,21 +63,35 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
     {!data?<main className="page" role="status">주간업무 계획을 불러오는 중…</main>:
     place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} place={place} picker={weekPicker}/>:
     place.page==="작성"?<Writing person={person} week={data.week} units={units} departmentId={place.departmentId} itemId={place.itemId} picker={picker} history={history}/>:
-    place.page==="현황판" && data.board?<Dashboard key={data.week.id} person={person} units={units} place={place} week={data.week} board={data.board} refresh={refresh} picker={picker} release={release} history={history}/>:
-    data.todos && data.board?<Todos week={data.week} view={data.todos} board={data.board} units={units} person={person} go={go} picker={picker} release={release}/>:null}
+    place.page==="현황판" && data.board?<Dashboard key={data.week.id} person={person} units={units} place={place} week={data.week} board={data.board} refresh={refresh} picker={picker} release={release} history={history}/>:null}
     {historyItem && data && <HistoryDialog itemId={historyItem} weekId={data.week.id} close={()=>setHistoryItem(undefined)}
       openRecord={(itemId,stepId)=>go({page:"기록",itemId,stepId,weekId:data.week.id})}/>}</>;
 }
 
 function App() {
   const [accounts, setAccounts] = useState<Person[]>([]), [units, setUnits] = useState<Organisation[]>([]);
-  const [person, setPerson] = useState<Person | null>(), [place,setPlace]=useState<Place>({page:"첫 화면"});
-  const [error, setError] = useState("");
+  const [person, setPerson] = useState<Person | null>(), [place,setPlace]=useState<Place>({page:"게시판"});
+  const [error, setError] = useState(""), [todo,setTodo]=useState<TodoView>();
   useEffect(() => {
     Promise.all([api<Person[]>("accounts"), api<Organisation[]>("organisations"), api<{person: Person|null}>("session")])
       .then(([people, org, session]) => {setAccounts(people);setUnits(org);setPerson(session.person);})
       .catch(e => setError(e.message));
   }, []);
+  useEffect(()=>{
+    setTodo(undefined);
+    if(!person)return;
+    let stopped=false,timer:number;
+    async function load(){
+      let interval=3000;
+      try{
+        const view=await api<TodoView>(`todos${place.weekId?`?weekId=${place.weekId}`:""}`);
+        if(stopped)return;
+        setTodo(view);interval=view.pollIntervalMs;
+      }catch{if(!stopped)setTodo(undefined);} // 오류는 화면 본문이 알리고, 메뉴는 지난 숫자를 남기지 않는다.
+      if(!stopped)timer=window.setTimeout(load,interval);
+    }
+    void load();return ()=>{stopped=true;clearTimeout(timer);};
+  },[person,place.weekId]);
   function go(next:Place){
     if(document.querySelector('[data-unsaved="true"]') && !confirm("저장하지 않은 변경을 버리고 이동할까요?"))return;
     if(place.page==="작성")window.dispatchEvent(new Event("lx:leave-writing"));
@@ -91,13 +103,17 @@ function App() {
   }} />;
   if (!person) return <main className="page" role="status">주간업무 계획을 불러오는 중…</main>;
   const org = units.find(o => o.id === person.organisationId);
+  const counts:Partial<Record<Place["page"],number>>={
+    작성:todo?.todos.filter(t=>t.kind==="write" && t.status==="수정 요청").length,
+    현황판:todo?.todos.filter(t=>t.kind!=="write").length};
   return <><header className="mast"><strong>주간업무 계획</strong>
-    <nav aria-label="주 메뉴">{(["첫 화면","작성","현황판","게시판","기록"] as const).map(m =>
-      <button key={m} aria-current={place.page===m?"page":undefined} onClick={()=>{if(place.page!==m)go({page:m});}}>{m}</button>)}</nav>
+    <nav aria-label="주 메뉴">{(["게시판","작성","현황판","기록"] as const).map(m =>
+      <button key={m} aria-current={place.page===m?"page":undefined} onClick={()=>{if(place.page!==m)go({page:m});}}>{m}
+        {!!counts[m] && <span className="count" data-status={m==="작성"?"수정 요청":"검토 요청"}>{counts[m]}</span>}</button>)}</nav>
     <div className="identity"><b>{person.name} {person.title}</b><span>{org?.name} · {roles[person.role]}</span>
       <button onClick={async () => {
         if (document.querySelector('[data-unsaved="true"]') && !confirm("저장하지 않은 변경을 버리고 계정을 전환할까요?")) return;
-        try {await api("session","DELETE");setPlace({page:"첫 화면"});setPerson(null);}catch(e){setError((e as Error).message);}
+        try {await api("session","DELETE");setPlace({page:"게시판"});setPerson(null);}catch(e){setError((e as Error).message);}
       }}>계정 전환</button></div>
   </header>
   {place.page==="게시판"?<Publications accounts={accounts} postId={place.postId}/>:

@@ -29,6 +29,7 @@ label input,label select,label textarea {font-weight:400}
 .mast nav {gap:var(--s1)}
 .mast nav :is(a,button) {background:transparent;border:0;min-height:36px;padding:var(--s1) var(--s3);display:inline-flex;align-items:center;font-size:var(--small);white-space:nowrap;text-decoration:none}
 .mast nav [aria-current="page"] {background:var(--ink);color:var(--paper);font-weight:700}
+.mast nav .count {margin-left:var(--s2);min-width:var(--s5);padding:0 var(--s1);background:var(--status-ink);color:var(--paper);font-size:var(--caption);font-weight:700;font-variant-numeric:tabular-nums;line-height:var(--s5);text-align:center}
 .identity {margin-left:auto;font-size:var(--small);flex-wrap:wrap}
 .identity span,.context,.week span,.edit-tools>span,.label-tools>span,.save-line span,.table-note {color:var(--mute);font-size:var(--small)}
 .page {max-width:1720px;margin:auto;padding:var(--s8) clamp(var(--s4),3vw,var(--s12)) var(--s12)}
@@ -117,13 +118,9 @@ label input,label select,label textarea {font-weight:400}
 .revision-note {flex:1}
 .revision-note input {min-width:var(--s12)}
 .task-list,.board {border-top:1px solid var(--ink)}
-.task-row,.review-toggle,.unit-row {width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);gap:var(--s4)}
-.task-row {display:grid;grid-template-columns:minmax(0,1fr) auto auto;padding:var(--s4) var(--s2)}
-.task-object {display:grid;gap:var(--s1)}
-.task-object b {font-size:var(--body)}
-.task-object small,.review-copy small,.review-toggle small,.submit-line>span,.notice,.change-note {font-size:var(--small);color:var(--mute)}
+.review-toggle,.unit-row {width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);gap:var(--s4)}
+.review-copy small,.review-toggle small,.submit-line>span,.notice,.change-note {font-size:var(--small);color:var(--mute)}
 .empty {display:grid;gap:var(--s3);justify-items:start;padding:var(--s8) 0}
-.empty button {margin-top:var(--s2)}
 .board {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:var(--s8);align-items:start}
 .board>aside,.board-detail {min-width:0;padding-top:var(--s6)}
 .board>aside {padding-right:var(--s5);border-right:1px solid var(--line)}

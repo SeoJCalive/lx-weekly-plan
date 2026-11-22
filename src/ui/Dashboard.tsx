@@ -51,6 +51,7 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
   const target=board.stages.find(s=>s.id===place.stageId);
   const [departmentId,setDepartment]=useState(place.departmentId ?? (target && board.departments.find(d=>
     d.departmentId===target.organisationId || d.reviews.some(r=>r.stageId===target.id))?.departmentId) ??
+    board.departments.find(d=>d.items.some(i=>i.actions.includes("approve")) || d.reviews.some(r=>r.actions.includes("approve")))?.departmentId ??
     person.departmentId ?? board.departments.find(d=>d.items.length)?.departmentId);
   const [selected,setSelected]=useState(place.itemId),[feedback,setFeedback]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   useEffect(()=>{
