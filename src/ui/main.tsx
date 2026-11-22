@@ -54,14 +54,15 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
     void load();return ()=>{stopped=true;clearTimeout(timer);};
   },[change,place.page,place.weekId,person.role]);
   const week=weeks.find(w=>w.id===data?.week.id);
-  const picker=week && <div className="week-context"><WeekPicker weeks={weeks} id={week.id} select={id=>go({page:place.page,weekId:id})}/>
+  const weekPicker=(context:Pick<Place,"recordsTab"|"departmentId">={})=>week && <div className="week-context"><WeekPicker weeks={weeks} id={week.id} select={id=>go({page:place.page,weekId:id,...context})}/>
     {deadline?.weekId===week.id && <Deadline value={deadline} manage={place.page!=="작성"} update={v=>{setDeadline(v);refresh();}}/>}</div>;
+  const picker=weekPicker();
   const history=(itemId:string)=>setHistoryItem(itemId);
   const stage=data?.board?.stages.find(s=>s.reviewerId===person.id && s.reviewUnit==="section" && s.parentStageId===null);
   const release=stage && week && data?.board && data.posts && <Release key={week.id} week={week} board={data.board} stageId={stage.id} posts={data.posts} go={go}/>;
   return <>{error && <p className="notice" role="alert">{error} <button onClick={refresh}>다시 시도</button></p>}
     {!data?<main className="page" role="status">주간업무 계획을 불러오는 중…</main>:
-    place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} itemId={place.itemId} stepId={place.stepId} picker={picker}/>:
+    place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} place={place} picker={weekPicker}/>:
     place.page==="작성"?<Writing person={person} week={data.week} units={units} departmentId={place.departmentId} itemId={place.itemId} picker={picker} history={history}/>:
     place.page==="현황판" && data.board?<Dashboard key={data.week.id} person={person} units={units} place={place} week={data.week} board={data.board} refresh={refresh} picker={picker} release={release} history={history}/>:
     data.todos && data.board?<Todos week={data.week} view={data.todos} board={data.board} units={units} person={person} go={go} picker={picker} release={release}/>:null}

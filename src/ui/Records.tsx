@@ -3,19 +3,21 @@ import type { DashboardView, StatisticsView, WeekView } from "../shared/api";
 import { categories, plainText } from "../shared/weekly-plan";
 import { History, type HistoryTarget } from "./History";
 import { ItemPreview } from "./Preview";
-import { Heading, names } from "./Workflow";
+import { Heading, names, type Place } from "./Workflow";
 
-export function Records({week,board,stats,itemId,stepId,picker}:{week:WeekView;board:DashboardView;stats:StatisticsView;itemId?:string;stepId?:number;picker:ReactNode}) {
+type RecordContext=Pick<Place,"recordsTab"|"departmentId">;
+export function Records({week,board,stats,place,picker}:{week:WeekView;board:DashboardView;stats:StatisticsView;place:Place;picker:(context:RecordContext)=>ReactNode}) {
+  const {itemId,stepId}=place;
   const groups=week.departments.filter(d=>board.departments.find(s=>s.departmentId===d.id)?.items.length);
-  const initial=groups.find(d=>categories.some(c=>d.items[c].some(it=>it.id===itemId))) ?? groups[0];
-  const [departmentId,setDepartment]=useState(initial?.id),[tab,setTab]=useState("기록");
+  const initial=groups.find(d=>categories.some(c=>d.items[c].some(it=>it.id===itemId))) ?? groups.find(d=>d.id===place.departmentId) ?? groups[0];
+  const [departmentId,setDepartment]=useState(initial?.id),[tab,setTab]=useState(place.recordsTab??"기록");
   const [selection,select]=useState<{target:HistoryTarget;stepId?:number}>({
     target:{kind:itemId?"item":"section",id:itemId??initial?.id??""},stepId,
   });
   const dept=groups.find(d=>d.id===departmentId);
   function openItem(id:string,entryId?:number){select({target:{kind:"item",id},stepId:entryId});}
-  return <main className="page records-page"><Heading week={week} title="기록" picker={picker}/>
-    <div className="record-tabs" role="tablist" aria-label="기록과 통계">{["기록","통계"].map(t=>
+  return <main className="page records-page"><Heading week={week} title="기록" picker={picker({recordsTab:tab,departmentId})}/>
+    <div className="record-tabs" role="tablist" aria-label="기록과 통계">{(["기록","통계"] as const).map(t=>
       <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab===t} aria-controls={`panel-${t}`}
         onClick={()=>setTab(t)}>{t}</button>)}</div>
     {tab==="기록"?<section role="tabpanel" id="panel-기록" aria-labelledby="tab-기록">
