@@ -285,12 +285,12 @@ label input,label select,label textarea {font-weight:400}
 .account-list span,.account-list small {font-size:var(--caption);font-weight:400;color:var(--mute)}
 .account-head {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:var(--s4) var(--s6);margin-bottom:var(--s6)}
 .account-head>div>p {margin-top:var(--s2);font-size:var(--small)}
-.recommend-note {color:var(--action);font-size:var(--small)}
-.recommend-note>p {margin-bottom:var(--s2);font-weight:600;color:var(--action)}
-.recommend-note dl {display:grid;grid-template-columns:auto auto;gap:var(--s1) var(--s3);margin:0}
-.recommend-note dl>div {display:contents}
-.recommend-note dt {font-weight:600}
-.recommend-note dd {margin:0}
+.account-head p.recommend-note {margin-top:var(--s3);color:var(--action);font-weight:600}
+.recommend-focus {flex:1 1 20rem;max-width:30rem;color:var(--action);font-size:var(--small)}
+.recommend-focus dl {display:grid;grid-template-columns:auto 1fr;gap:var(--s1) var(--s3);margin:0}
+.recommend-focus dl>div {display:contents}
+.recommend-focus dt {font-weight:600}
+.recommend-focus dd {margin:0}
 .account-list .recommend,.recommend {display:inline-block;margin-left:var(--s1);padding:0 var(--s1);font-size:var(--caption);font-weight:600;line-height:1.5;color:var(--paper);background:var(--action);vertical-align:1px}
 .recommend-note .recommend {margin:0 var(--s1) 0 0}
 /* Fixed paper geometry; zoom fits the whole two-column form rather than reflowing it. */
