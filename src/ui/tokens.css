@@ -3,6 +3,7 @@
   --paper: #fff; --ink: #202321; --mute: #515751; --soft: #f8f8f8; --wash: #efefef;
   --line: #d8d8d8; --edge: #949494; --focus: #14589a;
   --nav-current: #006498;
+  --action: #007a68; --action-hover: #006b5b; --action-active: #005c4e;
   --scrim: rgb(32 35 33 / .3);
   --empty: #515751; --writing: #205b87; --requested: #694693; --returned: #963d30; --approved: #286645;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;

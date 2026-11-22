@@ -15,8 +15,9 @@ button,.button,input,select,textarea {font:inherit;color:inherit;border-radius:0
 button,.button {display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:var(--s1) var(--s3);border:1px solid var(--edge);background:var(--paper);font-size:var(--small);font-weight:600;cursor:pointer;text-decoration:none;text-underline-offset:.2em}
 button:hover:not(:disabled),.button:hover {background:var(--wash)}
 button:active:not(:disabled),.button:active {background:var(--line)}
-button.primary {background:var(--ink);color:var(--paper);border-color:var(--ink)}
-button.primary:hover:not(:disabled) {background:var(--mute)}
+button.primary {background:var(--action);color:var(--paper);border-color:var(--action)}
+button.primary:hover:not(:disabled) {background:var(--action-hover);border-color:var(--action-hover)}
+button.primary:active:not(:disabled) {background:var(--action-active);border-color:var(--action-active)}
 button:disabled {color:var(--mute);background:var(--soft);border-color:var(--line);cursor:default}
 input,select,textarea {width:100%;border:1px solid var(--edge);background:var(--paper);padding:var(--s2) var(--s3);line-height:1.55;font-size:var(--small);caret-color:var(--focus)}
 textarea {resize:vertical;min-height:3rem}
