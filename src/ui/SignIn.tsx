@@ -3,10 +3,10 @@ import type { Organisation, Person, SignInRequest } from "../shared/api";
 import { api, roles } from "./api";
 
 const demoFocus = [
-  ["W2001", "처장이 보낸 수정 요청을 받아 그 자리에서 고치는 화면"],
-  ["R0002", "고친 내용과 수정 사유를 확인하고 처 취합본을 올리는 화면"],
-  ["O0001", "여러 처의 취합본을 실에서 모아 승인하는 화면"],
-  ["D0001", "최종 승인과 게시, 게시판 문서, 지난 이력과 통계"],
+  ["W2001", "업무 작성 · 검토 요청"],
+  ["R0002", "처 업무 승인 · 수정 요청 · 처 취합본 상신"],
+  ["O0001", "처 취합본 승인 · 실 취합본 상신"],
+  ["D0001", "최종 승인 · 게시판 게시 · 이력 · 통계"],
 ] as const;
 const demoNumbers = new Set<string>(demoFocus.map(([number]) => number));
 
@@ -31,7 +31,7 @@ export function SignIn({ accounts, units, onSignIn }: {
   }
   const demo = demoFocus.flatMap(([number, focus]) => {
     const person = accounts.find(a => a.employeeNumber === number);
-    return person ? [[person.name, focus] as const] : [];
+    return person ? [[`${person.name} (${roles[person.role]})`, focus] as const] : [];
   });
   return <><header className="mast"><strong>주간업무 계획</strong></header>
     <main className="entry">
@@ -48,7 +48,7 @@ export function SignIn({ accounts, units, onSignIn }: {
       </section>
       <section aria-label="사용자 목록"><div className="account-head"><div><h2>사용자 선택</h2><p>이름을 선택하면 그 사용자로 로그인합니다.</p>
           {demo.length > 0 && <p className="recommend-note"><span className="recommend">추천</span> 시연용 추천 사용자<br />작성부터 최종 승인까지 이어지는 결재 라인입니다.</p>}</div>
-        {demo.length > 0 && <aside className="recommend-focus" aria-label="추천 사용자별로 볼 것">
+        {demo.length > 0 && <aside className="recommend-focus" aria-label="추천 사용자별로 할 수 있는 일">
           <dl>{demo.map(([name, focus]) => <div key={name}><dt>{name}</dt><dd>{focus}</dd></div>)}</dl></aside>}</div>
         {units.filter(o => accounts.some(a => a.organisationId === o.id)).map(o => <section className="account-group" key={o.id}>
           <h3>{o.name}</h3><div className="account-list">{accounts.filter(a => a.organisationId === o.id).map(a =>
