@@ -4,7 +4,7 @@ import { api } from "./api";
 import { Cover, Preview } from "./Preview";
 import type { Place } from "./Workflow";
 
-export function Release({week,board,stageId,posts,go}:{week:WeekSummary;board:DashboardView;stageId:number;posts:BoardPost[];go:(p:Place)=>void}) {
+export function Release({week,board,stageId,posts,go,openWeek}:{week:WeekSummary;board:DashboardView;stageId:number;posts:BoardPost[];go:(p:Place)=>void;openWeek:(id:number)=>void}) {
   const missing=board.departments.filter(d=>d.status!=="승인" || !d.reviews.some(r=>r.stageId===stageId && r.status==="승인"));
   const ready=board.departments.length>0 && !missing.length;
   const version=(posts.find(p=>p.weekId===week.id)?.version ?? 0)+1;
@@ -20,7 +20,7 @@ export function Release({week,board,stageId,posts,go}:{week:WeekSummary;board:Da
         go({page:"게시판",postId:post.id,weekId:undefined});
       }else{
         const next=await api<WeekSummary>(`weeks/${week.id}/open-next`,"POST");
-        go({page:"첫 화면",weekId:next.id});
+        openWeek(next.id);
       }
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }

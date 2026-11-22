@@ -59,7 +59,8 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
   const picker=weekPicker();
   const history=(itemId:string)=>setHistoryItem(itemId);
   const stage=data?.board?.stages.find(s=>s.reviewerId===person.id && s.reviewUnit==="section" && s.parentStageId===null);
-  const release=stage && week && data?.board && data.posts && <Release key={week.id} week={week} board={data.board} stageId={stage.id} posts={data.posts} go={go}/>;
+  const release=stage && week && data?.board && data.posts && <Release key={week.id} week={week} board={data.board} stageId={stage.id} posts={data.posts} go={go}
+    openWeek={id=>go({page:place.page,weekId:id})}/>;
   return <>{error && <p className="notice" role="alert">{error} <button onClick={refresh}>다시 시도</button></p>}
     {!data?<main className="page" role="status">주간업무 계획을 불러오는 중…</main>:
     place.page==="기록" && data.board && stats?<Records key={data.week.id} week={data.week} board={data.board} stats={stats} place={place} picker={weekPicker}/>:
