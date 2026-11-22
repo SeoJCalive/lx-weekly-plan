@@ -62,7 +62,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
   }
   function editable(row: ItemRow, person: Person): void {
     if (!assignedPeople(row.id).some((assigned) => assigned.id === person.id))
-      throw new ApiFailure(403, "할당된 담당자만 편집할 수 있습니다.");
+      throw new ApiFailure(403, "지정된 담당자만 편집할 수 있습니다.");
   }
   function unlocked(id: string, person: Person): EditLock | null {
     const current = lock(id);
@@ -112,7 +112,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         if (person && person.name !== name) throw new ApiFailure(400, "이름과 사번이 일치하지 않습니다.");
         if (!person) {
           if (!input.departmentId || !input.title)
-            throw new ApiFailure(400, "처음 접속할 때 소속 처와 직급을 입력하세요.", { code: "PROFILE_REQUIRED" });
+            throw new ApiFailure(400, "처음 로그인할 때 소속 처와 직급을 입력하세요.", { code: "PROFILE_REQUIRED" });
           const departmentId = text(input.departmentId, "소속 처"), title = text(input.title, "직급");
           if (!organisations(db).some((unit) => unit.id === departmentId && unit.kind === "department"))
             throw new ApiFailure(400, "등록된 처를 선택하세요.");
@@ -133,7 +133,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       }
       const person = currentPerson(request);
       if (path === "/api/session" && method === "GET") return json({ person });
-      if (!person) throw new ApiFailure(401, "먼저 접속하세요.");
+      if (!person) throw new ApiFailure(401, "먼저 로그인하세요.");
       if (path === "/api/session" && method === "DELETE") {
         const token = /(?:^|;\s*)lx_session=([^;]+)/.exec(request.headers.get("cookie") ?? "")![1];
         db.transaction(() => {
@@ -171,7 +171,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
         const departmentId = sectionHistoryMatch[1];
         if (!db.query("SELECT id FROM sections WHERE department_id = ? AND week_id = ?").get(departmentId, week.id))
           throw new ApiFailure(404, "처 섹션을 찾을 수 없습니다.");
-        if (!review.inScope(departmentId, person)) throw new ApiFailure(403, "소속 범위의 기록만 열람할 수 있습니다.");
+        if (!review.inScope(departmentId, person)) throw new ApiFailure(403, "소속 범위의 이력만 열람할 수 있습니다.");
         return json(sectionHistory(db, departmentId, week.id));
       }
       const historyMatch = /^\/api\/items\/([^/]+)\/history$/.exec(path);
@@ -235,7 +235,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       if (labelMatch && method === "PUT") {
         const departmentId = labelMatch[1], input = await body(request);
         if (person.departmentId !== departmentId) throw new ApiFailure(403, "본인 소속 처의 소제목만 바꿀 수 있습니다.");
-        const thisWeek = text(input.thisWeek, "오른쪽 소제목");
+        const thisWeek = text(input.thisWeek, "금주 계획 소제목");
         const section = db.query<{ id: number; labels_json: string }, [string, number]>(`SELECT s.id, s.labels_json
           FROM sections s WHERE s.department_id = ? AND s.week_id = ?`).get(departmentId, week.id)!;
         const labels = { ...JSON.parse(section.labels_json), thisWeek };
@@ -271,7 +271,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           return json(itemView(row, person));
         }
         if (action === "assignment" && (method === "POST" || method === "DELETE")) {
-          if (!review.inScope(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목에만 본인을 할당할 수 있습니다.");
+          if (!review.inScope(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목에만 본인을 담당자로 지정할 수 있습니다.");
           if (row.status === "검토 요청") throw new ApiFailure(409, "검토 요청을 회수한 뒤 담당자를 바꾸세요.");
           db.transaction(() => {
             unlocked(id, person);

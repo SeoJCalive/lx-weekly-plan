@@ -23,7 +23,7 @@ export function HistoryDialog({itemId,weekId,close,openRecord}:{
       e.preventDefault();(e.shiftKey?last:first)?.focus();
     }
   }}>
-    <div className="dialog-heading"><h2 id="history-dialog-title">항목 기록</h2><button autoFocus onClick={()=>dialog.current?.close()}>닫기</button></div>
+    <div className="dialog-heading"><h2 id="history-dialog-title">처리 이력</h2><button autoFocus onClick={()=>dialog.current?.close()}>닫기</button></div>
     <History target={{kind:"item",id:itemId}} weekId={weekId} narrow openRecord={(id,stepId)=>{
       close();openRecord(id,stepId);
     }}/>

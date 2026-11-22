@@ -27,7 +27,7 @@ export function createPublishing(db: Database, templateBytes: Uint8Array, now: (
     const stage = db.query<{ id: number }, [number]>(`SELECT id FROM review_stages
       WHERE parent_stage_id IS NULL AND reviewer_id = ? AND review_unit = 'section'`).get(person.id);
     if (person.role !== "director" || !stage)
-      throw new ApiFailure(403, "최종 결정자만 배포하거나 다음 주차를 열 수 있습니다.");
+      throw new ApiFailure(403, "최종 승인자만 게시하거나 다음 주차를 열 수 있습니다.");
     return stage.id;
   }
   function posts(): BoardPost[] {
@@ -110,7 +110,7 @@ export function createPublishing(db: Database, templateBytes: Uint8Array, now: (
       const view = createReview(db, now, weekId).dashboard(person);
       if (!view.departments.length || view.departments.some((department) => department.status !== "승인" ||
         !department.reviews.some((review) => review.stageId === stageId && review.status === "승인")))
-        throw new ApiFailure(409, "모든 처 섹션의 최종 승인 뒤에 배포할 수 있습니다.");
+        throw new ApiFailure(409, "모든 처 섹션의 최종 승인 뒤에 게시할 수 있습니다.");
       const document = readPlan(db, weekId);
       const version = db.query<{ next: number }, [number]>(
         "SELECT COALESCE(MAX(version), 0) + 1 AS next FROM board_posts WHERE week_id = ?",

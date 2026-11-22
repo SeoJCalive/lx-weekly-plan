@@ -16,10 +16,10 @@ export function Records({week,board,stats,place,picker}:{week:WeekView;board:Das
   });
   const dept=groups.find(d=>d.id===departmentId);
   function openItem(id:string,entryId?:number){select({target:{kind:"item",id},stepId:entryId});}
-  return <main className="page records-page"><Heading week={week} title="기록" picker={picker({recordsTab:tab,departmentId})}/>
-    <div className="record-tabs" role="tablist" aria-label="기록과 통계">{(["기록","통계"] as const).map(t=>
+  return <main className="page records-page"><Heading week={week} title="이력" picker={picker({recordsTab:tab,departmentId})}/>
+    <div className="record-tabs" role="tablist" aria-label="이력과 통계">{(["기록","통계"] as const).map(t=>
       <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab===t} aria-controls={`panel-${t}`}
-        onClick={()=>setTab(t)}>{t}</button>)}</div>
+        onClick={()=>setTab(t)}>{t==="기록"?"이력":t}</button>)}</div>
     {tab==="기록"?<section role="tabpanel" id="panel-기록" aria-labelledby="tab-기록">
       {!dept?<p>이 주차에 열람할 수 있는 항목이 없습니다.</p>:
       <History key={`${selection.target.kind}:${selection.target.id}:${selection.stepId??""}`} target={selection.target} stepId={selection.stepId}
@@ -40,7 +40,7 @@ export function Records({week,board,stats,place,picker}:{week:WeekView;board:Das
     </section>:<section role="tabpanel" id="panel-통계" aria-labelledby="tab-통계"><h2>처별 통계</h2>
       <table className="statistics"><thead><tr><th scope="col">처</th><th scope="col">수정</th><th scope="col">수정 요청</th><th scope="col">마감 준수</th></tr></thead>
         <tbody>{stats.departments.map(d=><tr key={d.departmentId}><th scope="row">{d.name}</th><td>{d.revisions}</td><td>{d.revisionRequests}</td>
-          <td>{d.deadlineMet===null?"미상신":d.deadlineMet?"준수":"미준수"}</td></tr>)}</tbody></table>
+          <td>{d.deadlineMet===null?"상신 전":d.deadlineMet?"준수":"미준수"}</td></tr>)}</tbody></table>
       <p className="stats-note">수정은 재요청 횟수이며, 마감 준수는 처 취합본의 최초 상신 시각 기준입니다.</p>
     </section>}
   </main>;

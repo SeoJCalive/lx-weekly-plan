@@ -76,7 +76,7 @@ export function createRecords(db: Database, now: () => number, week: WeekSummary
     return { weekId: week.id, deadlineAt, passed: now() > deadlineAt, canChange: canChange(person) };
   }
   function changeDeadline(value: unknown, person: Person): DeadlineView {
-    if (!canChange(person)) throw new ApiFailure(403, "최종 결정자만 마감 일시를 바꿀 수 있습니다.");
+    if (!canChange(person)) throw new ApiFailure(403, "최종 승인자만 마감 일시를 바꿀 수 있습니다.");
     if (typeof value !== "number" || !Number.isSafeInteger(value) || !Number.isFinite(new Date(value).getTime()))
       throw new ApiFailure(400, "마감 일시는 유효한 밀리초 단위 시각이어야 합니다.");
     db.query("UPDATE weeks SET deadline_at = ? WHERE id = ?").run(value, week.id);

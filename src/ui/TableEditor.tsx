@@ -69,8 +69,8 @@ export function TableEditor({table,index,change,remove}:{table:WorkTable;index:n
       <div className="actions">
         <button type="button" onClick={()=>run(()=>{const next=merge(table,selection);apply(next);choose(next.cells.find(c=>cellName(c)===cellName(selection.from))!);})}>병합</button>
         <button type="button" disabled={cell.rowSpan===1 && cell.colSpan===1} onClick={()=>{apply(split(table,cell));choose(cell);}}>나누기</button>
-        <button type="button" onClick={()=>run(()=>apply(sumSelection(table,selection)))}>SUM 적용</button>
-        {cell.formula && <button type="button" onClick={()=>{const {formula,...rest}=cell;update({...rest,paragraphs:[[{text:String(sumValue(table,formula!))}]]});}}>수식 해제</button>}</div>
+        <button type="button" onClick={()=>run(()=>apply(sumSelection(table,selection)))}>합계 넣기</button>
+        {cell.formula && <button type="button" onClick={()=>{const {formula,...rest}=cell;update({...rest,paragraphs:[[{text:String(sumValue(table,formula!))}]]});}}>합계 해제</button>}</div>
       {error && <p role="alert">{error}</p>}
     </div>
   </section>;

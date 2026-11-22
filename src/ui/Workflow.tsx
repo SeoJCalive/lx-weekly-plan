@@ -20,7 +20,7 @@ export function StageProgress({dept,board,units}:{dept:DashboardDepartment;board
     if(!unit)break;
     const name={department:"처",office:"실",headquarters:"본부"}[unit.kind];
     const status=stage.reviewUnit==="item"?itemState:dept.reviews.find(r=>r.stageId===id)?.status;
-    steps.push({name,status,label:`${name}: ${status??"미도달"}`});
+    steps.push({name,status,label:`${name}: ${status??"대기"}`});
     stage=board.stages.find(s=>s.id===parentStageId);
   }
   return <span className="stage-bar" role="img" aria-label={steps.map(s=>s.label).join(", ")}>

@@ -108,13 +108,13 @@ function App() {
     현황판:todo?.todos.filter(t=>t.kind!=="write").length};
   return <><header className="mast"><strong>주간업무 계획</strong>
     <nav aria-label="주 메뉴">{(["게시판","작성","현황판","기록"] as const).map(m =>
-      <button key={m} aria-current={place.page===m?"page":undefined} onClick={()=>{if(place.page!==m)go({page:m});}}>{m}
+      <button key={m} aria-current={place.page===m?"page":undefined} onClick={()=>{if(place.page!==m)go({page:m});}}>{m==="현황판"?"검토 현황":m==="기록"?"이력":m}
         {!!counts[m] && <span className="count" data-status={m==="작성"?"수정 요청":"검토 요청"}>{counts[m]}</span>}</button>)}</nav>
     <div className="identity"><b>{person.name} {person.title}</b><span>{org?.name} · {roles[person.role]}</span>
       <button onClick={async () => {
-        if (document.querySelector('[data-unsaved="true"]') && !confirm("저장하지 않은 변경을 버리고 계정을 전환할까요?")) return;
+        if (document.querySelector('[data-unsaved="true"]') && !confirm("저장하지 않은 변경을 버리고 사용자를 변경할까요?")) return;
         try {await api("session","DELETE");setPlace({page:"게시판"});setPerson(null);}catch(e){setError((e as Error).message);}
-      }}>계정 전환</button></div>
+      }}>사용자 변경</button></div>
   </header>
   {place.page==="게시판"?<Publications accounts={accounts} postId={place.postId}/>:
     <Screen key={`${person.id}:${place.page}:${place.weekId}`} person={person} units={units} place={place} go={go}/>}

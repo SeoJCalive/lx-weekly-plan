@@ -34,7 +34,7 @@ function Decision({path,actions,items,done,weekId}:{path:string;actions:readonly
 function ItemContent({item}:{item:ItemView}) {
   const v=item.review.version,submitted=v && (item.status==="검토 요청" || item.status==="승인" || item.status==="수정 요청");
   const text=submitted?v.content:item;
-  return <><VersionContent text={text} label={submitted?`검토 제출본 · ${v.number}차`:"현재 작성본"}/>
+  return <><VersionContent text={text} label={submitted?`제출 내용 · ${v.number}차`:"작성 중인 내용"}/>
     {submitted && v.note && <ReviewCard kind="note" message={v.note} at={v.requestedAt} open/>}</>;
 }
 export function VersionContent({text,label,changes=[]}:{text:WorkItem;label?:string;changes?:readonly ItemChange[]}) {
@@ -80,7 +80,7 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
     return d && <button key={id} className="unit-row" aria-pressed={departmentId===id} onClick={()=>choose(id)}>
       <span>{d.name}</span><span className="section-status"><StageProgress dept={d} board={board} units={units}/><Status value={d.status}/></span></button>;
   }
-  return <main className="page"><Heading title="현황판" week={week} picker={picker}/>{release}
+  return <main className="page"><Heading title="검토 현황" week={week} picker={picker}/>{release}
     <div className="board"><aside aria-label="조직별 현황"><h2>조직별 현황</h2>
       {board.offices.map(o=><section className="org-group" key={o.organisationId}><h3>{o.name}<Status value={o.status}/></h3>
         {o.departmentIds.map(unitRow)}</section>)}
@@ -95,7 +95,7 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
       {feedback && <p role="status" className="notice">{feedback}</p>}{error && <p role="alert">{error}</p>}
       {!dept.items.length?<><p>항목별 상태 집계</p><dl className="counts">{itemStatuses.map(s=><div key={s}><dt><Status value={s}/></dt><dd>{dept.counts[s]}건</dd></div>)}</dl></>:
         section && sectionReview ? <>
-          <h3>처 섹션 제출본</h3>
+          <h3>처 전체 제출 내용</h3>
           {dept.items.filter(i=>i.changed).map(i=><p className="change-note" key={i.id}>변경 항목 · {plainText(items.find(it=>it.id===i.id)!.title)}</p>)}
           <Decision key={`${dept.departmentId}:${stage?.id}:${sectionReview.submittedAt}`} path={`review-stages/${stage?.id}/sections/${dept.departmentId}`}
             actions={sectionReview.actions} items={items} done={done} weekId={week.id}/>
@@ -112,7 +112,7 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
             const open=activeId===it.id;
             return <div className="review-row" key={it.id}><div className="review-heading"><button className="review-toggle" aria-expanded={open} onClick={()=>{setSelected(open?"":it.id);setFeedback("");}}>
               <span className="num">{String(index+1).padStart(2,"0")}</span><b>{plainText(it.title)||"제목 없는 항목"} {row.changed && <small> · 변경 항목</small>}</b><Status value={row.status}/></button>
-              <button className="history-link" aria-label={`${plainText(it.title)||"제목 없는 항목"} 항목 기록`} onClick={()=>history(it.id)}>기록</button></div>
+              <button className="history-link" aria-label={`${plainText(it.title)||"제목 없는 항목"} 처리 이력`} onClick={()=>history(it.id)}>처리 이력</button></div>
               {open && <div className="item-detail"><ItemContent item={it}/><Decision key={it.review.version?.id} path={`items/${it.id}`} actions={row.actions} done={done}/></div>}
             </div>;
           })}</section>)}</div>}

@@ -23,18 +23,18 @@ export function SignIn({ accounts, units, onSignIn }: {
   }
   return <><header className="mast"><strong>주간업무 계획</strong></header>
     <main className="entry">
-      <section><h1>접속</h1><p>이름과 사번으로 접속합니다.</p>
+      <section><h1>로그인</h1><p>이름과 사번으로 로그인합니다.</p>
         <form onSubmit={submit} className="fields">
           <label>이름<input required autoComplete="name" value={name} onChange={e => setName(e.target.value)} /></label>
           <label>사번<input required autoComplete="username" value={number} onChange={e => {setNumber(e.target.value);setProfile(false);}} /></label>
-          {profile && <><p role="status">처음 접속하는 계정입니다. 소속과 직급을 입력하세요.</p>
+          {profile && <><p role="status">처음 로그인하는 사용자입니다. 소속과 직급을 입력하세요.</p>
             <label>소속 처<select required name="department" defaultValue=""><option value="" disabled>처 선택</option>
               {units.filter(o => o.kind === "department").map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
             <label>직급<input required name="title" /></label></>}
-          {error && <p role="alert">{error}</p>}<button className="primary" disabled={busy}>접속하기</button>
+          {error && <p role="alert">{error}</p>}<button className="primary" disabled={busy}>로그인</button>
         </form>
       </section>
-      <section aria-label="계정 목록"><h2>계정 선택</h2><p>이름을 선택하면 해당 계정으로 접속합니다.</p>
+      <section aria-label="계정 목록"><h2>계정 선택</h2><p>이름을 선택하면 그 사용자로 로그인합니다.</p>
         {units.filter(o => accounts.some(a => a.organisationId === o.id)).map(o => <section className="account-group" key={o.id}>
           <h3>{o.name}</h3><div className="account-list">{accounts.filter(a => a.organisationId === o.id).map(a =>
             <button key={a.id} disabled={busy} onClick={() => void enter({name:a.name,employeeNumber:a.employeeNumber})}>
