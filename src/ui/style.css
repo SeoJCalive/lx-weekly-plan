@@ -19,6 +19,7 @@ button.primary {background:var(--action);color:var(--paper);border-color:var(--a
 button.primary:hover:not(:disabled) {background:var(--action-hover);border-color:var(--action-hover)}
 button.primary:active:not(:disabled) {background:var(--action-active);border-color:var(--action-active)}
 button:disabled {color:var(--mute);background:var(--soft);border-color:var(--line);cursor:default}
+.items button[aria-current],.post-row[aria-pressed=true],.unit-row[aria-pressed=true],.history-step[aria-current=step] {box-shadow:inset 3px 0 #009881}
 input,select,textarea {width:100%;border:1px solid var(--edge);background:var(--paper);padding:var(--s2) var(--s3);line-height:1.55;font-size:var(--small);caret-color:var(--focus)}
 textarea {resize:vertical;min-height:3rem}
 input:read-only,textarea:read-only {background:var(--soft);border-color:var(--line)}
