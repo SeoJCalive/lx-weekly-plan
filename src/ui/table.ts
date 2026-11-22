@@ -60,6 +60,22 @@ export function resize(table:WorkTable,axis:"row"|"column",remove:number|null) {
 export function intersects(c:TableCell,{from,to}:SumFormula) {
   return c.row<=to.row && c.row+c.rowSpan>from.row && c.column<=to.column && c.column+c.colSpan>from.column;
 }
+export function selectedRange(a:TableCell,b:TableCell):SumFormula {
+  return {type:"SUM",from:{row:Math.min(a.row,b.row),column:Math.min(a.column,b.column)},
+    to:{row:Math.max(a.row+a.rowSpan,b.row+b.rowSpan)-1,column:Math.max(a.column+a.colSpan,b.column+b.colSpan)-1}};
+}
+export function sumSelection(table:WorkTable,formula:SumFormula) {
+  const {from,to}=formula;
+  const right={row:from.row,column:to.column+1},below={row:to.row+1,column:from.column};
+  const positions=from.column===to.column && from.row!==to.row?[below,right]:[right,below];
+  for(const p of positions){
+    const dest=table.cells.find(c=>c.row===p.row && c.column===p.column);
+    if(!dest || dest.paragraphs.some(line=>plainText(line).trim()) ||
+      (dest.formula && (cellName(dest.formula.from)!==cellName(from) || cellName(dest.formula.to)!==cellName(to))))continue;
+    return {...table,cells:table.cells.map(c=>c===dest?{...c,formula,paragraphs:[]}:c)};
+  }
+  throw Error("합계를 넣을 범위 오른쪽이나 아래에 빈 셀이 필요합니다.");
+}
 export function merge(table:WorkTable,range:SumFormula) {
   const {from,to}=range, cells=table.cells.filter(c=>intersects(c,range));
   if(cells.length<2)throw Error("병합할 셀을 두 개 이상 지정하세요.");

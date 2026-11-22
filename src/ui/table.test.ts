@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { seed } from "../shared/seed";
 import { validateTable } from "../shared/table-validation";
-import { merge, newTable, rectangle, resize, split } from "./table";
+import { merge, newTable, rectangle, resize, selectedRange, split, sumSelection } from "./table";
 import { tableCellStyle } from "../shared/table-style";
 import { templateTableStyles } from "../server/table-style";
 import { readTemplate } from "../server/template";
@@ -14,6 +14,19 @@ test("merge and split preserve rectangular coverage and never discard neighbouri
   expect(()=>merge(m,rectangle("B2:C2",m))).toThrow("기존 병합");
   t.cells[1].paragraphs=[[{text:"기존 내용"}]];
   expect(()=>merge(t,range)).toThrow("먼저 옮기세요");
+});
+test("reversed drag includes complete cells and SUM uses an adjacent empty cell",()=>{
+  const t=newTable(3,3,24000,1282),r=selectedRange(t.cells[1],t.cells[0]);
+  expect(r).toEqual(rectangle("A1:B1",t));
+  expect(sumSelection(t,r).cells[2].formula).toEqual(r);
+  t.cells[2].paragraphs=[[{text:"기존 내용"}]];
+  expect(sumSelection(t,r).cells[3].formula).toEqual(r);
+  t.cells[3].paragraphs=[[{text:"유지"}]];
+  expect(()=>sumSelection(t,r)).toThrow("빈 셀");
+  const m=merge(t,r);
+  expect(selectedRange(m.cells[0],m.cells[0])).toEqual(r);
+  const column=selectedRange(t.cells[0],t.cells[3]);
+  expect(sumSelection(t,column).cells[6].formula).toEqual(column);
 });
 test("row/column edits keep seed widths proportional, preserve SUM addresses or explain refusal",()=>{
   const t=seed.departments[1].items.ongoing[2].tables[0], grown=resize(t,"column",null);
