@@ -29,7 +29,7 @@ function ExportMenu({weekId,scopes,unsaved}:{weekId:number;scopes:{id:string;nam
     return ()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);};
   },[open]);
   return <div ref={box} className="export-menu" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setOpen(false);}}>
-    <button type="button" ref={trigger} aria-label="HWPX 다운로드" aria-expanded={open} aria-controls="export-scopes"
+    <button type="button" ref={trigger} aria-label="한글 파일 내려받기" aria-expanded={open} aria-controls="export-scopes"
       onClick={()=>setOpen(!open)}><span aria-hidden="true">↓</span> HWPX</button>
     <div id="export-scopes" hidden={!open} className="export-scopes">{scopes.map(u=><a className="button" key={u.id}
       href={`/api/week/hwpx?weekId=${weekId}${u.id?`&organisationId=${encodeURIComponent(u.id)}`:""}`} download

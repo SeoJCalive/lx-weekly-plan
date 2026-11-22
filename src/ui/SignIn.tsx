@@ -34,7 +34,7 @@ export function SignIn({ accounts, units, onSignIn }: {
           {error && <p role="alert">{error}</p>}<button className="primary" disabled={busy}>로그인</button>
         </form>
       </section>
-      <section aria-label="계정 목록"><h2>계정 선택</h2><p>이름을 선택하면 그 사용자로 로그인합니다.</p>
+      <section aria-label="사용자 목록"><h2>사용자 선택</h2><p>이름을 선택하면 그 사용자로 로그인합니다.</p>
         {units.filter(o => accounts.some(a => a.organisationId === o.id)).map(o => <section className="account-group" key={o.id}>
           <h3>{o.name}</h3><div className="account-list">{accounts.filter(a => a.organisationId === o.id).map(a =>
             <button key={a.id} disabled={busy} onClick={() => void enter({name:a.name,employeeNumber:a.employeeNumber})}>

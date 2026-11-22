@@ -12,8 +12,12 @@ export function object(value: unknown): Record<string, unknown> {
     throw new ApiFailure(400, "JSON 객체가 필요합니다.");
   return value as Record<string, unknown>;
 }
+const objectParticle = (word: string) => {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code < 11172 && code % 28 ? "을" : "를";
+};
 export function text(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value.trim()) throw new ApiFailure(400, `${label}을(를) 입력하세요.`);
+  if (typeof value !== "string" || !value.trim()) throw new ApiFailure(400, `${label}${objectParticle(label)} 입력하세요.`);
   return value.trim();
 }
 function richText(value: unknown): value is RichText {

@@ -222,7 +222,7 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
     person: Person, input: Record<string, unknown>): void {
     const stage = ownedStage(stageId, person);
     const section = stageSections(stage.id).find((section) => section.departmentId === departmentId);
-    if (!section || stage.reviewUnit !== "section") throw new ApiFailure(403, "소속 범위의 처 섹션만 검토할 수 있습니다.");
+    if (!section || stage.reviewUnit !== "section") throw new ApiFailure(403, "소속 범위의 처만 검토할 수 있습니다.");
     if (!sectionActions(stage, section.id, person).includes(action))
       throw new ApiFailure(409, "현재 상태에서는 해당 동작을 할 수 없습니다.");
     const current = sectionRow(section.id, stage.id)!;
@@ -235,7 +235,7 @@ export function createReview(db: Database, now: () => number, weekId?: number) {
           throw new ApiFailure(400, "수정할 항목을 하나 이상 지목하세요.");
         const targets = input.itemIds.map((id) => item(id));
         if (targets.some((row) => row.sectionId !== section.id))
-          throw new ApiFailure(403, "해당 처 섹션의 항목만 지목할 수 있습니다.");
+          throw new ApiFailure(403, "해당 처의 항목만 지목할 수 있습니다.");
         invalidate(section.id);
         for (const row of targets) {
           db.query("UPDATE items SET status = '수정 요청' WHERE id = ?").run(row.id);

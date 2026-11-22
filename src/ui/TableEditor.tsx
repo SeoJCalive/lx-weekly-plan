@@ -42,7 +42,7 @@ export function TableEditor({table,index,change,remove}:{table:WorkTable;index:n
   return <section ref={box} className="table-edit" aria-label={`표 ${index} 편집`}
     onKeyDown={e=>history.keyDown(e,()=>({value:table,caret:caret()}),restore)}>
     <div className="field-heading"><h3>표 {index} <small>{table.rows}행 × {table.columns}열</small></h3>
-      <button type="button" onClick={()=>{if(confirm(`표 ${index}을(를) 항목에서 삭제할까요?`))remove();}}>표 삭제</button></div>
+      <button type="button" onClick={()=>{if(confirm(`표 ${index}번을 항목에서 삭제할까요?`))remove();}}>표 삭제</button></div>
     {!!table.caption.length && <p>{linesText(table.caption)}</p>}
     <div className="grid-scroll"><table aria-label={`표 ${index} 셀`}><thead><tr><td/>{table.columnWidths.map((_,column)=>
       <th key={column} scope="col">{cellName({row:0,column}).slice(0,-1)}</th>)}</tr></thead>

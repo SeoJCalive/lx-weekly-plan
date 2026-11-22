@@ -11,7 +11,7 @@ export function Release({week,board,stageId,posts,go,openWeek}:{week:WeekSummary
   const title=`${week.title} ${week.titlePeriod.replace(/\s/g,"")} ${version}차`;
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
   async function act(publish:boolean) {
-    if(!confirm(publish?`「${title}」을 게시판에 게시할까요?\n게시 후 모든 구성원이 이 버전을 열람할 수 있습니다.`:
+    if(!confirm(publish?`「${title}」을 게시판에 게시할까요?\n게시 후 모든 구성원이 이 차수의 문서를 열람할 수 있습니다.`:
       "게시 전에 다음 주차를 열까요?\n현재 금주 계획과 계속업무를 복사하고, 다음 주차를 현재 주차로 지정합니다."))return;
     setBusy(true);setError("");
     try{
@@ -66,7 +66,7 @@ export function Publications({accounts,postId}:{accounts:Person[];postId?:number
       })}</aside>
       <section aria-label="게시 문서" className="board-detail">{error?<p role="alert">{error} <button onClick={()=>setRetry(r=>r+1)}>다시 시도</button></p>:
         !doc || doc.id!==id?<p role="status">문서를 불러오는 중…</p>:
-        <><div className="section-head"><h2>{doc.title}</h2><a className="button" download href={`/api/board/${doc.id}/hwpx`}>HWPX 다운로드</a></div>
+        <><div className="section-head"><h2>{doc.title}</h2><a className="button" download href={`/api/board/${doc.id}/hwpx`}>한글 파일 내려받기</a></div>
           <div key={doc.id} className="post-document" role="region" aria-label="게시 문서 본문" tabIndex={0}>
             <Cover week={doc.document}/>{doc.document.departments.map(d=><Preview key={d.id} dept={d} week={doc.document}/>)}</div></>}
       </section></div>}</main>;

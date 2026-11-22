@@ -90,7 +90,7 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
       <span className="section-status"><StageProgress dept={dept} board={board} units={units}/><Status value={dept.status}/></span></div>
       {!!dept.reviews.length && <div className="review-trail">{dept.reviews.map(r=><span key={r.stageId}>{stageName(r.stageId)} 검토 <Status value={r.status}/></span>)}</div>}
       {board.stages.filter(s=>s.actions.includes("submit") && (s.organisationId===departmentId || dept.reviews.some(r=>r.stageId===s.id))).map(s=>
-        <div className="submit-line" key={s.id}><span>소속 {s.reviewUnit==="item"?"항목":"처 섹션"} 모두 승인</span>
+        <div className="submit-line" key={s.id}><span>소속 {s.reviewUnit==="item"?"항목":"처"} 모두 승인</span>
           <button className="primary" disabled={busy} onClick={()=>void submit(s.id)}>{orgName(s.organisationId)} 취합본 상신</button></div>)}
       {feedback && <p role="status" className="notice">{feedback}</p>}{error && <p role="alert">{error}</p>}
       {!dept.items.length?<><p>항목별 상태 집계</p><dl className="counts">{itemStatuses.map(s=><div key={s}><dt><Status value={s}/></dt><dd>{dept.counts[s]}건</dd></div>)}</dl></>:

@@ -170,7 +170,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       if (sectionHistoryMatch && method === "GET") {
         const departmentId = sectionHistoryMatch[1];
         if (!db.query("SELECT id FROM sections WHERE department_id = ? AND week_id = ?").get(departmentId, week.id))
-          throw new ApiFailure(404, "처 섹션을 찾을 수 없습니다.");
+          throw new ApiFailure(404, "처를 찾을 수 없습니다.");
         if (!review.inScope(departmentId, person)) throw new ApiFailure(403, "소속 범위의 이력만 열람할 수 있습니다.");
         return json(sectionHistory(db, departmentId, week.id));
       }
