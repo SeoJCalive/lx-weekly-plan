@@ -28,7 +28,7 @@ Layout: 배포 - 첫 화면 할 일 목록 끝·현황판 검토 영역 위에 �
 
 Layout: 주차 - 제목의 기존 기간 자리에서 작업 범위를 선택 → inline grouping (기존 week 패턴); scroll owner: document; anti-patterns: 날짜 중복, 작성 중 자동 주차 전환.
 
-Layout: 게시판 - 차수를 고르면서 고정본을 읽음 → supporting-pane (https://github.com/changeroa/StyleGallery/blob/main/patterns/split-sidebar/supporting-pane.md); scroll owner: document, 양식 표만 가로 스크롤; anti-patterns: 거대한 표지 때문에 첫 본문이 숨거나 좁은 열에 양식 비율이 깨지는 배치.
+Layout: 게시판 - 차수 목록과 선택한 제목·다운로드를 남겨 둔 채 고정본을 읽음 → supporting-pane (https://github.com/changeroa/StyleGallery/blob/main/patterns/split-sidebar/supporting-pane.md); scroll owner: 표지와 양식 본문, 높이를 넘는 차수 목록은 별도 스크롤; anti-patterns: 문서 끝에서 차수를 잃거나 좁은 열에 양식 비율이 깨지는 배치.
 
 Layout: 기록 - 처 전체·항목의 단계를 고르며 한 제출본을 확인 → list-detail (기존 supporting-pane 패턴); scroll owner: 높이가 제한된 왼쪽 목록과 오른쪽 상세 각각, 양식만 내부 가로 스크롤; anti-patterns: 모든 기록 펼침, 단계 수에 따라 늘어나는 페이지, 통계와 기록의 동시 노출.
 

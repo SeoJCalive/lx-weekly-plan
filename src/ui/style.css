@@ -154,6 +154,18 @@ label input,label select,label textarea {font-weight:400}
 .release-actions {margin-inline-start:auto;padding-inline-start:var(--s5);border-inline-start:1px solid var(--line)}
 .release [role=alert] {flex-basis:100%}
 .publications {grid-template-columns:minmax(0,1fr) minmax(0,2.4fr)}
+#root:has(.publications) {height:100dvh;display:flex;flex-direction:column}
+#root:has(.publications)>.mast {flex:none}
+.page:has(.publications) {width:100%;min-height:0;flex:1;display:flex;flex-direction:column;padding-bottom:var(--s4)}
+.publications.board {min-height:0;flex:1;grid-template-rows:minmax(0,1fr);align-items:stretch}
+.publications>aside {min-height:0;overflow:auto}
+.publications .board-detail {display:flex;min-height:0;flex-direction:column}
+.publications .section-head {flex:none}
+.post-document {overflow:auto;min-height:0;overscroll-behavior:contain}
+@media(max-width:860px){
+  .publications.board {grid-template-rows:minmax(0,max-content) minmax(0,1fr)}
+  .publications>aside {max-height:22dvh}
+}
 .publications aside h2 {margin-bottom:var(--s4)}
 .post-row {display:grid;justify-content:start;gap:var(--s2);width:100%;text-align:left;overflow-wrap:anywhere;word-break:keep-all;border:0;border-bottom:1px solid var(--line);padding:var(--s4) var(--s3)}
 .post-row[aria-pressed=true] {background:var(--wash)}

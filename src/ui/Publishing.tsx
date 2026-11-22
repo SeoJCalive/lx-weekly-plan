@@ -67,6 +67,7 @@ export function Publications({accounts,postId}:{accounts:Person[];postId?:number
       <section aria-label="선택한 배포본" className="board-detail">{error?<p role="alert">{error} <button onClick={()=>setRetry(r=>r+1)}>다시 시도</button></p>:
         !doc || doc.id!==id?<p role="status">문서를 불러오는 중…</p>:
         <><div className="section-head"><h2>{doc.title}</h2><a className="button" download href={`/api/board/${doc.id}/hwpx`}>HWPX 다운로드</a></div>
-          <Cover week={doc.document}/>{doc.document.departments.map(d=><Preview key={d.id} dept={d} week={doc.document}/>)}</>}
+          <div key={doc.id} className="post-document" role="region" aria-label="배포 문서 본문" tabIndex={0}>
+            <Cover week={doc.document}/>{doc.document.departments.map(d=><Preview key={d.id} dept={d} week={doc.document}/>)}</div></>}
       </section></div>}</main>;
 }
