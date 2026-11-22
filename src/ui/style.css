@@ -283,6 +283,9 @@ label input,label select,label textarea {font-weight:400}
 .account-list {display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--s2)}
 .account-list button {align-items:flex-start;flex-direction:column;padding:var(--s2) var(--s3);text-align:left;border-color:var(--edge)}
 .account-list span,.account-list small {font-size:var(--caption);font-weight:400;color:var(--mute)}
+.entry>section>p.recommend-note {margin-top:calc(var(--s6) * -1 + var(--s2));color:var(--action);font-size:var(--small);font-weight:600}
+.account-list .recommend,.recommend {display:inline-block;margin-left:var(--s1);padding:0 var(--s1);font-size:var(--caption);font-weight:600;line-height:1.5;color:var(--paper);background:var(--action);vertical-align:1px}
+.recommend-note .recommend {margin:0 var(--s1) 0 0}
 /* Fixed paper geometry; zoom fits the whole two-column form rather than reflowing it. */
 .form-paper {color:var(--doc-ink);background:var(--doc-paper);font:11pt/1.42 var(--serif);margin:auto;overflow-wrap:anywhere;white-space:pre-wrap}
 .form-paper h3 {font:700 15pt/1.12 var(--serif);margin:0}
