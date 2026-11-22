@@ -120,6 +120,8 @@ describe("publishing and board versions", () => {
       publishedBy: demoAccounts.findIndex((person) => person.employeeNumber === "D0001") + 1,
     });
     expect((await ok<BoardDocument>("GET", `/api/board/${result.post.id}`)).document).toEqual(document);
+    const disposition = (await call("GET", `/api/board/${result.post.id}/hwpx`)).headers.get("Content-Disposition")!;
+    expect(decodeURIComponent(disposition.split("filename*=UTF-8''")[1])).toBe("기획혁신본부 주간업무 계획(11.9.~11.13.) 1차.hwpx");
     expect(result.nextWeek).toMatchObject({ id: 2, isCurrent: true });
     expect(currentWeekId(db)).toBe(2);
     await openNext();

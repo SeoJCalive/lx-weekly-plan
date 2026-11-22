@@ -19,6 +19,14 @@ interface ItemRow {
   assigneeMode: "automatic" | "manual";
 }
 
+function hwpxHeaders(title: string) {
+  const name = title.replace(/\s*<([^>]*)>/, (_, period: string) => `(${period.replace(/\s/g, "")})`);
+  return {
+    "Content-Type": "application/hwp+zip",
+    "Content-Disposition": `attachment; filename="weekly-plan.hwpx"; filename*=UTF-8''${encodeURIComponent(`${name}.hwpx`)}`,
+  };
+}
+
 export function createApp({ db, templateBytes, now = Date.now }: {
   db: Database;
   templateBytes: Uint8Array;
@@ -140,10 +148,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       if (postMatch && method === "GET") {
         const id = Number(postMatch[1]);
         if (!postMatch[2]) return json(publishing.post(id));
-        return new Response(new Uint8Array(publishing.download(id)), { headers: {
-          "Content-Type": "application/hwp+zip",
-          "Content-Disposition": `attachment; filename="weekly-plan-post-${id}.hwpx"`,
-        } });
+        return new Response(new Uint8Array(publishing.download(id)), { headers: hwpxHeaders(publishing.post(id).title) });
       }
       const publishMatch = /^\/api\/weeks\/([1-9]\d*)\/(publish|open-next)$/.exec(path);
       if (publishMatch && method === "POST") {
@@ -192,6 +197,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
       }
       if (path === "/api/week/hwpx" && method === "GET") {
         const plan = readPlan(db, week.id), organisationId = url.searchParams.get("organisationId");
+        let scope = "";
         if (organisationId !== null) {
           const units = organisations(db), unit = units.find((unit) => unit.id === organisationId);
           if (!unit) throw new ApiFailure(404, "조직을 찾을 수 없습니다.");
@@ -199,11 +205,11 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           if (!review.inScope(unit.id, person)) throw new ApiFailure(403, "본인 소속 범위만 출력할 수 있습니다.");
           plan.departments = plan.departments.filter((department) => unit.kind === "department" ?
             department.id === unit.id : units.find((candidate) => candidate.id === department.id)?.parentId === unit.id);
+          scope = ` ${unit.name}`;
         }
-        return new Response(new Uint8Array(generateHwpx(plan, templateBytes)), { headers: {
-          "Content-Type": "application/hwp+zip",
-          "Content-Disposition": "attachment; filename=\"weekly-plan.hwpx\"",
-        } });
+        return new Response(new Uint8Array(generateHwpx(plan, templateBytes)), {
+          headers: hwpxHeaders(`${plan.title} ${plan.titlePeriod}${scope}`),
+        });
       }
       if (path === "/api/items" && method === "POST") {
         const input = await body(request);

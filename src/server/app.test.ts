@@ -355,4 +355,6 @@ test("the real download handler returns a zip starting with mimetype", async () 
   const response = await handler(new Request("http://localhost/api/week/hwpx", { headers: { cookie: first } }));
   const bytes = new Uint8Array(await response.arrayBuffer());
   expect(strFromU8(bytes.subarray(30, 38))).toBe("mimetype");
+  const disposition = response.headers.get("Content-Disposition")!;
+  expect(decodeURIComponent(disposition.split("filename*=UTF-8''")[1])).toMatch(/^기획혁신본부 주간업무 계획\(\d+\.\d+\.~\d+\.\d+\.\)\.hwpx$/);
 });
