@@ -1,3 +1,15 @@
+@font-face {
+  font-family: "Pretendard GOV"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("./fonts/PretendardGOV-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard GOV"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("./fonts/PretendardGOV-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard GOV"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("./fonts/PretendardGOV-Bold.woff2") format("woff2");
+}
 :root {
   color-scheme: light;
   --paper: #fff; --ink: #202321; --mute: #515751; --soft: #f8f8f8; --wash: #efefef;
@@ -8,7 +20,8 @@
   --empty: #515751; --writing: #205b87; --requested: #694693; --returned: #963d30; --approved: #286645;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
   --caption: .75rem; --small: .875rem; --body: 1rem; --h3: 1.25rem; --h2: 1.625rem; --h1: 2.25rem;
-  --sans: "Malgun Gothic", "Noto Sans CJK KR", sans-serif;
+  --sans: "Pretendard GOV", "Malgun Gothic", "Noto Sans CJK KR", sans-serif;
+  --form-sans: "Malgun Gothic", "Noto Sans CJK KR", sans-serif;
   --serif: "함초롬바탕", "Batang", "Noto Serif CJK KR", serif;
   --doc-ink: black; --doc-paper: white; --doc-line: #777; --doc-pale: #f2f2f2;
   --doc-header: #c8d2e9; --doc-head-light: #f7f9ff; --doc-cell: #dedede; --doc-blue: #0000ff; --doc-red: #f00;

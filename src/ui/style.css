@@ -253,7 +253,7 @@ label input,label select,label textarea {font-weight:400}
 .cover {margin-bottom:var(--s4);border-block:1px solid var(--line)}
 .cover summary {font-weight:600;font-size:var(--small);padding:var(--s2);cursor:pointer}
 .cover-paper {position:relative;container-type:inline-size;max-width:210mm;aspect-ratio:210/297;margin:auto;background:var(--doc-paper);color:var(--doc-ink);text-align:center;font-family:var(--serif)}
-.cover-title {position:absolute;inset:24% 13% auto;display:grid;gap:1cqw;font:700 5.6cqw/1.15 var(--sans)}
+.cover-title {position:absolute;inset:24% 13% auto;display:grid;gap:1cqw;font:700 5.6cqw/1.15 var(--form-sans)}
 .cover-title b+b {font-size:4.4cqw}
 .cover-title img {width:100%;height:1.5cqw}
 .cover-date,.cover-logo {position:absolute;inset:58% 0 auto;font-size:4.4cqw}
@@ -293,19 +293,19 @@ label input,label select,label textarea {font-weight:400}
 .outer:not(.ongoing)>tbody>tr>td+td,.outer:not(.ongoing)>thead>tr>th+th {border-left:1.3px solid var(--doc-ink)}
 .outer>thead th {text-align:center;background:linear-gradient(var(--doc-head-light),var(--doc-header));font:700 15pt var(--serif);border-bottom:3px double var(--doc-line)}
 .outer>thead th span {font:400 12pt var(--serif)}
-.outer .doc-sub th {text-align:left;background:var(--doc-paper);font:700 11pt var(--sans);border-bottom:1px solid var(--doc-line)}
+.outer .doc-sub th {text-align:left;background:var(--doc-paper);font:700 11pt var(--form-sans);border-bottom:1px solid var(--doc-line)}
 .doc-body {padding:3pt 4pt;vertical-align:top}
 .doc-title {font-size:12pt;font-weight:700;margin-bottom:3pt}
 .doc-title sup {font-size:.68em}
 .form-paper [data-color=blue] {color:var(--doc-blue)}
 .form-paper [data-color=red] {color:var(--doc-red)}
 .doc-content,.doc-note {min-height:1em;margin-top:3pt}
-.doc-note {font:9pt/1.48 var(--sans)}
+.doc-note {font:9pt/1.48 var(--form-sans)}
 .doc-assignee {padding:1pt 3pt;vertical-align:middle;font-size:10.5pt}
-.ongoing>thead th {background:var(--doc-pale);font:700 12pt var(--sans)}
+.ongoing>thead th {background:var(--doc-pale);font:700 12pt var(--form-sans)}
 .subtables {display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:3pt;margin:2pt 1pt}
-.nested {max-width:100%;font-family:var(--sans);line-height:1.15}
-.nested caption {text-align:right;font:8pt var(--sans)}
+.nested {max-width:100%;font-family:var(--form-sans);line-height:1.15}
+.nested caption {text-align:right;font:8pt var(--form-sans)}
 .nested td {border:.5pt solid var(--doc-line);padding:0;vertical-align:middle}
 @media(max-width:1150px) {
   .mast {gap:var(--s4)} .mast nav :is(a,button) {padding-inline:var(--s2)}
