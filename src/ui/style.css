@@ -173,7 +173,9 @@ label input,label select,label textarea {font-weight:400}
 .review-heading {display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--line)}
 .review-heading .review-toggle,.history-link {border:0}
 .history-link {font-weight:400;text-decoration:underline;color:var(--mute)}
-.doc-history {border:0;padding:0;display:block;text-align:left;font:inherit;text-decoration:underline}
+.doc-history {border:0;padding:0;display:inline-flex;align-items:baseline;gap:var(--s1);text-align:left;font:inherit}
+.doc-history svg {width:var(--small);height:var(--small);flex:none;color:var(--mute)}
+.doc-history:is(:hover,:focus-visible) .doc-title {text-decoration:underline;text-underline-offset:.15em}
 .records-page {height:calc(100dvh - 90px);min-height:400px;display:flex;flex-direction:column;padding-bottom:var(--s4)}
 .records-page>[role=tabpanel] {min-height:0;flex:1}
 .record-tabs {display:flex;gap:var(--s2);border-bottom:1px solid var(--line);padding-bottom:var(--s2)}

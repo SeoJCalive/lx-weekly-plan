@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
+import { plainText, sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
 import { formLayout } from "./form-layout" with {type:"macro"};
 import { formRuns } from "../shared/form-runs";
 import { tableCellStyle } from "../shared/table-style";
@@ -33,7 +33,11 @@ export function Nested({table}:{table:WorkTable}) {
 function rows(groups: (WorkItem|undefined)[][], ongoing=false, options?:{history?:(id:string)=>void;number?:number}) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
     <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
-      {item && <>{options?.history?<button className="doc-history" title="항목 기록" onClick={()=>options.history?.(item.id)}><Title item={item} number={options.number??i+1}/></button>:<Title item={item} number={options?.number??i+1}/>}
+      {item && <>{options?.history?<button className="doc-history" title="항목 기록" aria-label={`${plainText(item.title)} 항목 기록`} onClick={()=>options.history?.(item.id)}>
+        <Title item={item} number={options.number??i+1}/>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+      </button>:<Title item={item} number={options?.number??i+1}/>}
         {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
         {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
         {!!item.tables.length && <div className="subtables">{item.tables.map(t=><Nested key={t.id} table={t}/>)}</div>}
