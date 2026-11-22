@@ -150,13 +150,20 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
       if (mine)setNote("");else await open(next);
     });
   }
+  const focusAdded=useRef<string|null>(null);
+  useEffect(()=>{
+    if(!busy && editable && item?.id===focusAdded.current){
+      document.querySelector<HTMLInputElement>("#item-title")?.focus();
+      focusAdded.current=null;
+    }
+  },[busy,editable,item?.id]);
   function add() {
     if(!leaveOK())return;
     void action(async()=>{
       await release();
       const next=await api<ItemView>(`items?weekId=${week.id}`,"POST",{departmentId:dept.id,category:cat});
       select(next);select(await api<ItemView>(itemPath(next)+"/assignment","POST"));await open(next);
-      document.querySelector<HTMLInputElement>("#item-title")?.focus();
+      focusAdded.current=next.id;
     });
   }
   const rendered=draft && item ? {...draft,content:marked(draft.content,item.content,false),notes:marked(draft.notes,item.notes,true)} : undefined;
@@ -193,14 +200,14 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
       void action(async()=>{await release();onSection(next);});
   }}>{sections.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
   <div className="workspace" data-unsaved={dirty || labelDirty || !!note.trim()}>
-    <section className="input-pane"><div className="section-head"><h2>업무 항목</h2>
-      {person.departmentId===dept.id && <button disabled={busy || !online} onClick={add}>+ 항목 추가</button>}</div>
+    <section className="input-pane"><div className="section-head"><h2>업무 항목</h2></div>
       <div className="categories" aria-label="업무 구분">{categories.map(c=><button key={c} aria-pressed={cat===c} disabled={busy}
         onClick={()=>{if(cat!==c)switchTo(c,dept.items[c][0]);}}>{names[c]} <small>{dept.items[c].length}</small></button>)}</div>
       <ol className="items">{dept.items[cat].map((it,i)=>{const editor=otherEditor(it,person);return <li key={it.id} data-locked={!!editor} data-returned={it.status==="수정 요청"}><button aria-current={it.id===item?.id?"true":undefined}
         disabled={busy} onClick={()=>{if(it.id!==item?.id)switchTo(cat,it);}}><span className="num">{String(i+1).padStart(2,"0")}</span>
         <span>{plainText(it.title) || "제목 없는 항목"}</span><span className="actions">{editor && <EditorBadge name={editor}/>}<Status value={it.status}/></span></button></li>;})}</ol>
       {!dept.items[cat].length && <p>아직 등록된 항목이 없습니다.</p>}
+      {person.departmentId===dept.id && <button disabled={busy || !online} onClick={add}>+ 항목 추가</button>}
       {error && <p role="alert">{error}</p>}{!online && <p role="alert">오프라인입니다. 연결 후 저장하세요.</p>}
       {item && draft && <section className="editor" data-locked={!!other} data-returned={item.status==="수정 요청"}><div className="section-head"><h2>{names[cat]} {number}번</h2>
         <div className="actions">{other && <EditorBadge name={other}/>}<Status value={item.status}/><button disabled={busy} onClick={()=>history(item.id)}>항목 기록</button></div></div>
