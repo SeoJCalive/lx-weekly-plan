@@ -24,7 +24,8 @@ input:read-only,textarea:read-only {background:var(--soft);border-color:var(--li
 label {display:grid;gap:var(--s2);font-size:var(--small);font-weight:600}
 label input,label select,label textarea {font-weight:400}
 .mast {display:flex;align-items:center;gap:var(--s10);padding:var(--s3) clamp(var(--s4),3vw,var(--s12));border-bottom:1px solid var(--ink);min-height:64px}
-.mast>strong {font-size:var(--h3);letter-spacing:-.04em;white-space:nowrap}
+.mast>strong {display:inline-flex;align-items:center;gap:var(--s2);font-size:var(--h3);letter-spacing:-.04em;white-space:nowrap}
+.mast>strong::before {content:"";flex:none;height:.9em;aspect-ratio:128/56;background:url("./lx-logo.png") center/contain no-repeat}
 .mast nav,.identity,.section-head,.edit-tools,.save-line,.label-tools,.label-tools form {display:flex;align-items:center;gap:var(--s3)}
 .mast nav {gap:var(--s1)}
 .mast nav :is(a,button) {background:transparent;border:0;min-height:36px;padding:var(--s1) var(--s3);display:inline-flex;align-items:center;font-size:var(--small);white-space:nowrap;text-decoration:none}
