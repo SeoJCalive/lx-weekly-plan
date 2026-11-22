@@ -2,12 +2,14 @@ import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { type RichText } from "../shared/weekly-plan";
 import { editLines, editText, emphasize, linesText, selectionMarks, type Emphasis } from "./text";
+import { startsWord, useUndo, type Caret, type Step } from "./undo";
 
 export function EmphasisField({id,label,lines,rows,readOnly,toolbar,activate,change}:{id:string;label:string;lines:RichText[];
   rows?:number;readOnly:boolean;toolbar:HTMLElement|null;activate:()=>void;change:(lines:RichText[])=>void}) {
   const field=useRef<HTMLInputElement|HTMLTextAreaElement|null>(null);
   const mirror=useRef<HTMLDivElement|null>(null);
-  const visited=useRef(false),caret=useRef<number|null>(null);
+  const visited=useRef(false),caret=useRef<Caret|null>(null),before=useRef<Caret>({start:0,end:0});
+  const history=useUndo<RichText[]>();
   const [range,setRange]=useState([0,0]);
   const pressed=selectionMarks(lines,range[0],range[1]);
   function sync() {
@@ -24,25 +26,34 @@ export function EmphasisField({id,label,lines,rows,readOnly,toolbar,activate,cha
       const a=el.selectionStart??0,b=el.selectionEnd??0;
       return old[0]===a && old[1]===b?old:[a,b];
     });
-    el.addEventListener("selectionchange",selection);
+    const input=()=>{before.current={start:el.selectionStart??0,end:el.selectionEnd??0};};
+    el.addEventListener("selectionchange",selection);el.addEventListener("beforeinput",input);
     const observer=new ResizeObserver(sync);
     observer.observe(el);
-    return ()=>{observer.disconnect();el.removeEventListener("selectionchange",selection);};
+    return ()=>{observer.disconnect();el.removeEventListener("selectionchange",selection);el.removeEventListener("beforeinput",input);};
   },[]);
   useLayoutEffect(()=>{
     sync();
     if (caret.current!==null && field.current) {
-      field.current.focus();field.current.setSelectionRange(caret.current,caret.current);caret.current=null;
+      field.current.focus();field.current.setSelectionRange(caret.current.start,caret.current.end);caret.current=null;
     }
   });
   function update(value:string) {
     change(rows ? editLines(lines,value) : [editText(lines[0],value,true)]);
   }
+  const current=()=>({value:lines,caret:{start:field.current?.selectionStart??0,end:field.current?.selectionEnd??0}});
+  function restore(step:Step<RichText[]>) {caret.current=step.caret;change(step.value);}
   const attrs={id,readOnly,value:linesText(lines),ref:(el:HTMLInputElement|HTMLTextAreaElement|null)=>{field.current=el;},
     onFocus:()=>{visited.current=true;activate();},
     onSelect:()=>{const el=field.current;if(el)setRange([el.selectionStart??0,el.selectionEnd??0]);},
     onScroll:sync,
-    onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>)=>update(e.target.value)};
+    onKeyDown:(e:React.KeyboardEvent)=>{if(!readOnly)history.keyDown(e,current,restore);},
+    onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>)=>{
+      const el=e.target;
+      history.record({value:lines,caret:before.current},{time:e.timeStamp,caret:{start:el.selectionStart??0,end:el.selectionEnd??0},
+        newWord:startsWord(linesText(lines),el.value)});
+      update(el.value);
+    }};
   function insert(text:string) {
     const el=field.current;
     if (!el || readOnly)return;
@@ -50,12 +61,15 @@ export function EmphasisField({id,label,lines,rows,readOnly,toolbar,activate,cha
     const end=visited.current ? el.selectionEnd??start : start;
     const pair=text==="「」",selection=el.value.slice(start,end);
     const replacement=pair ? `「${selection}」` : text;
-    caret.current=start+(pair && !selection ? 1 : replacement.length);
+    const at=start+(pair && !selection ? 1 : replacement.length);
+    history.record({value:lines,caret:{start,end}});
+    caret.current={start:at,end:at};
     update(el.value.slice(0,start)+replacement+el.value.slice(end));
   }
   function apply(mark:Emphasis) {
     const el=field.current;
     if (!el || readOnly || range[0]===range[1])return;
+    history.record({value:lines,caret:{start:range[0],end:range[1]}});
     change(emphasize(lines,range[0],range[1],mark));
     el.focus();el.setSelectionRange(range[0],range[1]);
   }

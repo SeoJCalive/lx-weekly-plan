@@ -6,6 +6,7 @@ import { Preview, tableGeometry } from "./Preview";
 import { marked, sameLine } from "./text";
 import { EmphasisField } from "./EmphasisField";
 import { TableEditor } from "./TableEditor";
+import { UndoInput } from "./UndoInput";
 import { newTable } from "./table";
 import { names, Status } from "./Workflow";
 import { ReviewCard } from "./ReviewCard";
@@ -239,13 +240,13 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
               setDraft({...draft,tables:[...draft.tables,newTable(cat==="ongoing"?3:2,cat==="ongoing"?4:3,width,height)]});
             }}>+ 표 추가</button></fieldset> :
             !!draft.tables.length && <p className="table-note">표 {draft.tables.length}개 · 양식 미리보기에서 확인</p>}
-          <label>업무담당자<input value={draft.assignee} readOnly={!editable || busy}
-            onChange={e=>setDraft({...draft,assignee:e.target.value})}/></label>
+          <label>업무담당자<UndoInput key={`${draft.id}/assignee`} value={draft.assignee} readOnly={!editable || busy}
+            change={assignee=>setDraft({...draft,assignee})}/></label>
           {feedback && <p role="status">{feedback}</p>}
           {(editable || item.actions.includes("request-review")) && <div className="save-line">
             <div className="revision-submit">
             {item.review.version && (item.actions.includes("request-review") || (editable && dirty)) && <label className="revision-note">수정 사유 (선택)
-              <input value={note} disabled={busy || !online} onChange={e=>setNote(e.target.value)}/></label>}
+              <UndoInput key={`${draft.id}/note`} value={note} disabled={busy || !online} change={setNote}/></label>}
             <div className="actions">{editable && <><span className="save-dot" data-dirty={dirty} role="img" aria-label={dirty?"저장 안 된 변경 있음":"저장됨"} title={dirty?"저장 안 된 변경 있음":"저장됨"}/>
               <button className={dirty?"primary":""} disabled={busy || !dirty}>중간 저장</button></>}
             {(item.actions.includes("request-review") || (editable && dirty)) && <button type="button" className={dirty?"":"primary"}
@@ -260,7 +261,7 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
         e.preventDefault();void action(async()=>{
           const result=await api<Pick<DepartmentView,"labels">>(`departments/${dept.id}/label?weekId=${week.id}`,"PUT",{thisWeek:label});
           setDept(d=>({...d,labels:result.labels}));setLabel(result.labels.thisWeek);setEditLabel(false);
-        });}}><label>오른쪽 소제목<input value={label} required onChange={e=>setLabel(e.target.value)}/></label>
+        });}}><label>오른쪽 소제목<UndoInput value={label} required change={setLabel}/></label>
         <button disabled={busy || !online || !label.trim()}>적용</button><button type="button" onClick={()=>{setLabel(dept.labels.thisWeek);setEditLabel(false);}}>취소</button></form>
         : <><span>오른쪽 소제목 <b>{label}</b></span><button onClick={()=>setEditLabel(true)}>소제목 변경</button></>}</div>}
       <Preview dept={previewDept} week={week}/>
