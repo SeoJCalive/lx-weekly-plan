@@ -283,7 +283,14 @@ label input,label select,label textarea {font-weight:400}
 .account-list {display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--s2)}
 .account-list button {align-items:flex-start;flex-direction:column;padding:var(--s2) var(--s3);text-align:left;border-color:var(--edge)}
 .account-list span,.account-list small {font-size:var(--caption);font-weight:400;color:var(--mute)}
-.entry>section>p.recommend-note {margin-top:calc(var(--s6) * -1 + var(--s2));color:var(--action);font-size:var(--small);font-weight:600}
+.account-head {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:var(--s4) var(--s6);margin-bottom:var(--s6)}
+.account-head>div>p {margin-top:var(--s2);font-size:var(--small)}
+.recommend-note {color:var(--action);font-size:var(--small)}
+.recommend-note>p {margin-bottom:var(--s2);font-weight:600;color:var(--action)}
+.recommend-note dl {display:grid;grid-template-columns:auto auto;gap:var(--s1) var(--s3);margin:0}
+.recommend-note dl>div {display:contents}
+.recommend-note dt {font-weight:600}
+.recommend-note dd {margin:0}
 .account-list .recommend,.recommend {display:inline-block;margin-left:var(--s1);padding:0 var(--s1);font-size:var(--caption);font-weight:600;line-height:1.5;color:var(--paper);background:var(--action);vertical-align:1px}
 .recommend-note .recommend {margin:0 var(--s1) 0 0}
 /* Fixed paper geometry; zoom fits the whole two-column form rather than reflowing it. */
