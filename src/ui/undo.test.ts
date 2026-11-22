@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
-import { record, redo, shortcut, startsWord, undo, type Undo } from "./undo";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { record, redo, shortcut, startsWord, undo, useUndo, type Step, type Undo } from "./undo";
 
 const at = (start:number,end=start) => ({start,end});
 test("continuous typing is one step; a pause, a caret jump or a new word starts another", () => {
@@ -41,4 +43,45 @@ test("Ctrl or Cmd with Z undoes; with Shift+Z or Y it redoes", () => {
     shortcut({ctrlKey:false,metaKey:false,shiftKey:false,altKey:false,code,...mods});
   expect([key("KeyZ",{ctrlKey:true}),key("KeyZ",{metaKey:true}),key("KeyZ",{ctrlKey:true,shiftKey:true}),
     key("KeyY",{ctrlKey:true}),key("KeyZ",{}),key("KeyZ",{ctrlKey:true,altKey:true})]).toEqual(["undo","undo","redo","redo",undefined,undefined]);
+});
+
+function keyEvent(code:string):React.KeyboardEvent {
+  const keys={altKey:false,ctrlKey:true,metaKey:false,shiftKey:false,charCode:0,keyCode:0,
+    code,key:code==="KeyZ"?"z":"y",location:0,repeat:false,which:0,getModifierState:()=>false};
+  const nativeEvent=Object.assign(new Event("keydown",{cancelable:true}),keys,{
+    isComposing:false,detail:0,view:null,initUIEvent(){},initKeyboardEvent(){},
+    DOM_KEY_LOCATION_STANDARD:0,DOM_KEY_LOCATION_LEFT:1,DOM_KEY_LOCATION_RIGHT:2,DOM_KEY_LOCATION_NUMPAD:3,
+  } as const);
+  return {...keys,nativeEvent,locale:"",detail:0,bubbles:false,cancelable:true,defaultPrevented:false,eventPhase:0,
+    isTrusted:false,target:new EventTarget(),timeStamp:0,type:"keydown",
+    get currentTarget():never {throw new TypeError("This keyboard fixture has no DOM target");},
+    get view():never {throw new TypeError("This keyboard fixture has no DOM view");},
+    preventDefault:()=>nativeEvent.preventDefault(),stopPropagation:()=>nativeEvent.stopPropagation(),
+    isDefaultPrevented:()=>nativeEvent.defaultPrevented,isPropagationStopped:()=>nativeEvent.cancelBubble,persist(){}};
+}
+
+test.each([
+  {way:"undo",code:"KeyZ",target:"A",retry:["A","A","B","C","D","D"],keys:["KeyZ","KeyZ","KeyY","KeyY","KeyY","KeyY"]},
+  {way:"redo",code:"KeyY",target:"C",retry:["C","D","D","C","B","A","A"],keys:["KeyY","KeyY","KeyY","KeyZ","KeyZ","KeyZ","KeyZ"]},
+])("rejected $way preserves both histories and retries the same step", ({code,target,retry,keys}) => {
+  const captured:ReturnType<typeof useUndo<string>>[]=[];
+  function Capture() {captured.push(useUndo<string>());return null;}
+  renderToStaticMarkup(createElement(Capture));
+  const history=captured[0];
+  if(!history)throw new TypeError("React did not render the hook capture");
+  const steps=["A","B","C","D"].map((value,i)=>({value,caret:{cell:`A${i+1}`,start:i,end:i+1}}));
+  let current:Step<string>=steps[3];
+  const restore=(step:Step<string>)=>{current=step;};
+  const press=(key:string)=>history.keyDown(keyEvent(key),()=>current,restore);
+  steps.slice(0,3).forEach(step=>history.record(step));
+  press("KeyZ");
+  press("KeyZ");
+  const rejected:Step<string>[]=[];
+  const error=new RangeError("Table group exceeds the body width");
+
+  expect(()=>history.keyDown(keyEvent(code),()=>current,step=>{rejected.push(step);throw error;})).toThrow(error);
+
+  expect(rejected).toEqual(steps.filter(step=>step.value===target));
+  expect(current).toEqual(steps[1]);
+  expect(keys.map(key=>{press(key);return current;})).toEqual(retry.flatMap(value=>steps.filter(step=>step.value===value)));
 });

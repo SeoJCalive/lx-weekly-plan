@@ -47,7 +47,7 @@ export function useUndo<T>() {
       if (!way || e.nativeEvent.isComposing) return;
       e.preventDefault();
       const result=(way==="undo" ? undo : redo)(history.current,current());
-      if (result) {history.current=result[0];restore(result[1]);}
+      if (result) {restore(result[1]);history.current=result[0];}
     },
   };
 }
