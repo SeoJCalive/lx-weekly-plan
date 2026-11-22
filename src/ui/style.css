@@ -320,12 +320,12 @@ label input,label select,label textarea {font-weight:400}
 .doc-note {font:9pt/1.48 var(--form-sans)}
 .doc-assignee {padding:1pt 3pt;vertical-align:middle;font-size:10.5pt}
 .ongoing>thead th {background:var(--doc-pale);font:700 12pt var(--form-sans)}
-.subtables {display:grid;gap:3pt;margin-block:2pt}
-.table-row {display:flex;align-items:flex-end}
+.subtables {display:grid;gap:0;margin:0;min-width:0}
+.table-row {display:flex;align-items:flex-end;min-width:0}
 .table-slot {min-width:0;flex-shrink:1}
 .nested {max-width:100%;font-family:var(--form-sans);line-height:1.15}
 .nested caption {text-align:right;font:8pt var(--form-sans)}
-.nested td {border:.5pt solid var(--doc-line);padding:0;vertical-align:middle}
+.nested td {vertical-align:middle}
 @media(max-width:1150px) {
   .mast {gap:var(--s4)} .mast nav :is(a,button) {padding-inline:var(--s2)}
   .identity {gap:var(--s2)} .input-pane {padding-right:var(--s4)} .preview-pane {padding-inline:var(--s4)}

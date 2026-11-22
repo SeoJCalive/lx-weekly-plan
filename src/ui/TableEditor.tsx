@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { sumValue, type TableCell, type WorkTable } from "../shared/weekly-plan";
 import { validateTable } from "../shared/table-validation";
-import { besidePrevious, tableCellStyle, tableMargins, type TableStyles } from "../shared/table-style";
+import { besidePrevious, tableCellStyle, tableMargins, tablePartWidth, type TableStyles } from "../shared/table-style";
 import { editLines, linesText } from "./text";
 import { cellName, intersects, merge, paint, resize, selectedRange, split, sumSelection } from "./table";
 import { startsWord, useUndo, type Caret, type Step, type Typing } from "./undo";
@@ -46,8 +46,7 @@ export function TableEditor({table,index,change,remove,styles,bodyWidth,validate
     setActive(cellName(cells[0]));setEnd(cellName(cells[cells.length-1]));setError("");
   }
   const margin=tableMargins(table,styles),total=table.columnWidths.reduce((a,b)=>a+b,0);
-  const widthFor=(parts:number)=>Math.floor((bodyWidth-parts*(margin.left+margin.right)-
-    (parts>1?styles.inline.leading+styles.inline.gap*(parts-1):0))/parts);
+  const widthFor=(parts:number)=>tablePartWidth(parts,bodyWidth,styles,margin,(index-1)%parts);
   const sizes=[1,2,3],size=sizes.find(n=>widthFor(n)===total);
   function setWidth(parts:number){
     const width=widthFor(parts);let used=0;

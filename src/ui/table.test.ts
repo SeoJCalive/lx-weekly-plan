@@ -44,7 +44,7 @@ test("new tables shade only their header and added rows and columns inherit thei
   const styles=templateTableStyles(readTemplate(new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer())));
   const table=newTable(3,4,49000,1282);
   expect(table.cells.map(c=>tableCellStyle(table,c,styles).background)).toEqual([
-    "#D9D9D9","#D9D9D9","#D9D9D9","#D9D9D9",
+    "#E5E5E5","#E5E5E5","#E5E5E5","#E5E5E5",
     "#FFFFFF","#FFFFFF","#FFFFFF","#FFFFFF",
     "#FFFFFF","#FFFFFF","#FFFFFF","#FFFFFF",
   ]);
@@ -56,7 +56,7 @@ test("new tables shade only their header and added rows and columns inherit thei
     expect(tableCellStyle(grown,c,styles)).toEqual(tableCellStyle(source,original,styles));
   }
   const oneRow=newTable(1,2,24000,1282),next=resize(oneRow,"row",null);
-  expect(next.cells.every(c=>tableCellStyle(next,c,styles).background==="#D9D9D9")).toBe(true);
+  expect(next.cells.every(c=>tableCellStyle(next,c,styles).background==="#E5E5E5")).toBe(true);
   const removed=resize(table,"row",0);
   expect(removed.cells.every(c=>tableCellStyle(removed,c,styles).background==="#FFFFFF")).toBe(true);
 });

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { seed } from "../shared/seed";
+import { newTable } from "../ui/table";
 import { changedCases } from "../../scripts/export-cases";
 import { generateHwpx } from "./hwpx";
 import { bodyContentWidth, templateTableStyles } from "./table-style";
@@ -159,6 +160,70 @@ describe("weekly plan hwpx", () => {
     const xml=readTemplate(generate(data));
     expect(paragraphs(xml.items.get(it.id)!.body).map(p=>descendants(p,"hp:tbl").length).filter(Boolean)).toEqual([2,1]);
   });
+  test.each([false,true])("new tables use the form's cell typography and margins (beside=%s)",beside=>{
+    const data=structuredClone(seed),item=data.departments[1].items.ongoing[0];
+    item.tables=[newTable(3,2,20000,1466),{...newTable(3,2,20000,1466),beside}];
+    for(const table of item.tables) {
+      table.cells[0].alignment="center";
+      table.cells[0].paragraphs=[[{text:"검토 항목",bold:true,color:"blue"}]];
+      table.cells[1].background="header";
+      for(const cell of table.cells.slice(1))cell.alignment="left";
+      table.cells[2].paragraphs=[[{text:"추진 계획",bold:false}]];
+      table.cells[2].background="gray";
+    }
+    const output=readTemplate(generate(data)),body=output.items.get(item.id)!.body;
+    const ps=paragraphs(body),tables=descendants(body,"hp:tbl");
+    const tablePs=ps.filter(p=>descendants(p,"hp:tbl").length);
+    expect(tablePs).toHaveLength(beside?1:2);
+    expect(ps.at(-1)).toBe(ps.findLast(p=>descendants(p,"hp:tbl").length));
+    expect(ps.filter(p=>!descendants(p,"hp:tbl").length && !paragraphText(p).trim())).toHaveLength(0);
+    for(const table of tables) {
+      expect(child(table,"hp:outMargin").attributes).toEqual({left:"0",right:"0",top:"0",bottom:"0"});
+      expect(child(table,"hp:inMargin").attributes).toEqual({left:"0",right:"0",top:"0",bottom:"0"});
+      expect(child(table,"hp:pos").attributes.treatAsChar).toBe("1");
+      expect(child(table,"hp:sz").attributes.height).toBe("4398");
+      for(const [i,c] of tableCells(table).entries()) {
+        expect(c.attributes.hasMargin).toBe("1");
+        expect(child(c,"hp:cellMargin").attributes).toEqual({left:"283",right:"283",top:"283",bottom:"283"});
+        expect(child(c,"hp:cellSz").attributes.height).toBe("1466");
+        const fill=descendants(output.header,"hh:borderFill").find(f=>f.attributes.id===c.attributes.borderFillIDRef)!;
+        const address=child(c,"hp:cellAddr").attributes,span=child(c,"hp:cellSpan").attributes;
+        for(const side of ["left","right","top","bottom"])
+          expect(child(fill,`hh:${side}Border`).attributes).toEqual({
+            type:(side==="left"&&address.colAddr==="0")||
+              (side==="right"&&Number(address.colAddr)+Number(span.colSpan)===2)?"NONE":"SOLID",
+            width:side==="top"&&address.rowAddr==="0"?"0.12 mm":"0.1 mm",color:"#000000"});
+        const p=paragraphs(c)[0],property=output.paraProperties.get(p.attributes.paraPrIDRef)!;
+        const expected=clone(output.paraProperties.get("31")!);
+        setAttribute(expected,"id",property.attributes.id);
+        setAttribute(child(expected,"hh:align"),"horizontal",i===0?"CENTER":"LEFT");
+        expect(serialize(property)).toBe(serialize(expected));
+        for(const run of children(p,"hp:run")) {
+          const actual=clone(output.charProperties.get(run.attributes.charPrIDRef)!);
+          const base=clone(output.charProperties.get("62")!);
+          setAttribute(base,"id",actual.attributes.id);
+          setAttribute(base,"textColor",i===0?"#0000FF":"#000000");
+          expect(children(actual,"hh:bold")).toHaveLength(i<2?1:0);
+          for(const p of [base,actual])p.children=p.children.filter(n=>typeof n==="string"||n.name!=="hh:bold");
+          expect(serialize(actual)).toBe(serialize(base));
+        }
+      }
+    }
+    expect(child(body,"hp:cellMargin").attributes).toEqual({left:"140",right:"140",top:"138",bottom:"140"});
+    expect(child(body,"hp:subList").attributes.vertAlign).toBe("CENTER");
+    expect(child(body,"hp:cellSz").attributes.height).toBe(beside?"8863":"13811");
+    const before=ps[ps.findIndex(p=>descendants(p,"hp:tbl").length)-1];
+    expect(before.attributes.paraPrIDRef).toBe("54");
+    for(const [index,p] of tablePs.entries()){
+      const property=output.paraProperties.get(p.attributes.paraPrIDRef)!;
+      const expected=clone(output.paraProperties.get("49")!);
+      setAttribute(expected,"id",property.attributes.id);
+      for(const [i,margin] of descendants(expected,"hh:margin").entries()){
+        setAttribute(child(margin,"hc:prev"),"value",(index===0?408:0)*(i+1));
+      }
+      expect(serialize(property)).toBe(serialize(expected));
+    }
+  });
   test.each([2,3])("new groups of %i tables use the form's inline runs and unique IDs", count=>{
     const data=structuredClone(seed),item=data.departments[1].items.ongoing[2];
     item.tables=Array.from({length:count},(_,index)=>({
@@ -184,8 +249,9 @@ describe("weekly plan hwpx", () => {
     expect(strFromU8(unzipSync(generate(data))["Contents/section0.xml"]))
       .toBe(strFromU8(unzipSync(generate())["Contents/section0.xml"]));
     const original=readTemplate(template),styles=templateTableStyles(original);
-    expect(styles.inline).toEqual({leading:450,gap:550});
-    expect(styles.margin).toEqual({left:708,right:566});
+    expect(styles.inline).toEqual({leading:450,gap:550,trailing:534,beforeSpacing:408,slack:399,
+      bodyMargin:{left:140,right:140,top:138,bottom:140}});
+    expect(styles.margin).toEqual({left:0,right:0});
     for(const id of ["item-166","item-228","item-290"]){
       const item=original.items.get(id)!;
       expect(item.data.tables.map(table=>table.beside)).toEqual([undefined,true]);
@@ -215,6 +281,14 @@ describe("weekly plan hwpx", () => {
     item.id="copied-pair";item.templateItemId="item-166";
     data.departments[0].items.thisWeek.push(item);
     expect(()=>generate(data)).toThrow("앞 표와 합친 폭");
+  });
+  test.each([1,2])("new row of %i tables reserves the original trailing space",count=>{
+    const data=structuredClone(seed),item=data.departments[1].items.ongoing[0];
+    item.tables=Array.from({length:count},(_,i)=>({...newTable(3,4,count===1?50802:25126,1466),beside:i>0}));
+    if(count===1){
+      const output=readTemplate(generate(data));
+      expect(child(descendants(output.items.get(item.id)!.body,"hp:tbl")[0],"hp:sz").attributes.width).toBe("50801");
+    }else expect(()=>generate(data)).toThrow("폭");
   });
   test("export fitting uses the destination cell margins for a moved single table",()=>{
     const data=structuredClone(seed),item=structuredClone(data.departments[1].items.ongoing[2]);
@@ -384,9 +458,9 @@ describe("weekly plan hwpx", () => {
     const doc = section(generate(data));
     const outer = descendants(doc, "hp:tbl").find((t) => t.attributes.id === "1233225380")!;
     const bodies = tableCells(outer).filter((c) => ["108", "111"].includes(paragraphs(c)[0].attributes.id));
-    expect(bodies.map((c) => child(c, "hp:cellSz").attributes.height)).toEqual(["0", "0"]);
-    expect(bodies.map((c) => child(c, "hp:cellMargin").attributes.top)).toEqual(["1413", "566"]);
-    expect(bodies.map((c) => child(c, "hp:cellMargin").attributes.bottom)).toEqual(["1413", "566"]);
+    expect(bodies.map((c) => child(c, "hp:cellSz").attributes.height)).toEqual(["8311", "0"]);
+    expect(bodies.map((c) => child(c, "hp:cellMargin").attributes.top)).toEqual(["138", "566"]);
+    expect(bodies.map((c) => child(c, "hp:cellMargin").attributes.bottom)).toEqual(["140", "566"]);
     expect(child(descendants(bodies[0], "hp:tbl")[0], "hp:outMargin").attributes.bottom).toBe("0");
     const added = section(generate(changedCases()[1]));
     const main = descendants(added, "hp:tbl").find(t => t.attributes.id === "1178668902")!;
@@ -419,6 +493,10 @@ describe("weekly plan hwpx", () => {
     const main = descendants(doc, "hp:tbl").find((t) => t.attributes.id === "1178668902")!;
     const nested = descendants(main, "hp:tbl")[0];
     expect(Number(child(nested, "hp:sz").attributes.width)).toBeLessThan(25891);
+    const body=tableCells(main).find(cell=>descendants(cell,"hp:tbl").includes(nested))!;
+    expect(child(body,"hp:cellMargin").attributes).toEqual({left:"140",right:"140",top:"138",bottom:"140"});
+    expect(Number(child(nested,"hp:sz").attributes.width)+450+534+280)
+      .toBe(Number(child(body,"hp:cellSz").attributes.width));
     expect(descendants(nested, "hp:fieldBegin")[0].attributes.type).toBe("FORMULA");
     const ongoing = descendants(doc, "hp:tbl").find((t) => t.attributes.id === "1239168024")!;
     expect(descendants(ongoing, "hp:tbl")).toHaveLength(0);

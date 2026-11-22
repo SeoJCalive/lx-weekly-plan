@@ -1,20 +1,21 @@
 import { paragraphs, readTemplate, tableCells } from "../server/template";
 import { categories } from "../shared/weekly-plan";
 import { child, children, descendants, textContent } from "../server/xml";
-import { templateTableStyles } from "../server/table-style";
+import { inlineParagraph, templateTableStyles } from "../server/table-style";
 
 /** Only form geometry and the four fixed cover marks enter the browser bundle. */
 export async function formLayout() {
   const template = readTemplate(new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer()));
   const byItem: Record<string, number[]> = {}, bySection: Record<string, number[][]> = {};
-  const prototype=[...template.items.values()].flatMap(i=>i.data.tables)[0];
+  const prototype=descendants(inlineParagraph(template),"hp:tbl")[0];
+  const tableStyles=templateTableStyles(template);
   const titleStyles:Record<string,{text:string;style:boolean}[]>={};
-  const out=child(template.tables.get(prototype.id)!,"hp:outMargin").attributes;
+  const out=child(prototype,"hp:outMargin").attributes;
   for (const [id,item] of template.items) {
     const runs=children(paragraphs(item.body)[0],"hp:run").map(r=>({text:children(r,"hp:t").map(textContent).join(""),
       style:!!children(template.charProperties.get(r.attributes.charPrIDRef)!,"hh:supscript").length}));
     if(runs.some(r=>r.style))titleStyles[id]=runs;
-    const body=item.body, margin=(body.attributes.hasMargin==="1"?child(body,"hp:cellMargin"):child(item.table,"hp:inMargin")).attributes;
+    const body=item.body, margin=tableStyles.inline.bodyMargin;
     byItem[id]=[...[body,item.assignee].map(cell=>Number(child(cell,"hp:cellSz").attributes.height)),
       Number(child(body,"hp:cellSz").attributes.width)-Number(margin.left)-Number(margin.right)-Number(out.left)-Number(out.right)];
   }
@@ -38,5 +39,5 @@ export async function formLayout() {
   }
   const cover=["image1.JPG","image2.JPG","image3.png","image4.png"].map(file=>
     `data:image/${file.endsWith("png")?"png":"jpeg"};base64,${Buffer.from(template.entries[`BinData/${file}`]).toString("base64")}`);
-  return { byItem, bySection, cover, titleStyles,rowHeight:prototype.rowHeights[0],tableStyles:templateTableStyles(template) };
+  return { byItem, bySection, cover, titleStyles,rowHeight:Number(child(tableCells(prototype)[0],"hp:cellSz").attributes.height),tableStyles };
 }

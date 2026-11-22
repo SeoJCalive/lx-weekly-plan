@@ -19,6 +19,7 @@ const address = (cell: { row: number; column: number }): string => `${columnName
 export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8Array {
   const t = readTemplate(templateBytes);
   const tableStyles = templateTableStyles(t);
+  const tablePrototype = descendants(inlineParagraph(t), "hp:tbl")[0];
   const coloredFill = coloredFills(t.header);
   const layoutTables = (tables: WorkTable[]) =>
     tables.map(table => ({...table,beside:besidePrevious(table,tableStyles)}));
@@ -124,7 +125,8 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       const original = baseline ? sourceCells.get(key) ?? originals.find(c =>
         c.attributes.borderFillIDRef === style.borderFillId) ?? originals[0] : originals[0];
       const c = clone(original);
-      setAttribute(c, "borderFillIDRef", cell.background ? coloredFill(style.borderFillId, style.background) : style.borderFillId);
+      setAttribute(c, "borderFillIDRef", cell.background || !tableStyles.tables[table.id]
+        ? coloredFill(style.borderFillId, style.background,!tableStyles.tables[table.id]?style.borders:undefined) : style.borderFillId);
       setAttribute(child(c, "hp:cellAddr"), "rowAddr", cell.row);
       setAttribute(child(c, "hp:cellAddr"), "colAddr", cell.column);
       setAttribute(child(c, "hp:cellSpan"), "rowSpan", cell.rowSpan);
@@ -184,6 +186,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     const { number, isNew, destination } = options;
     const body = clone(source.body), assignee = clone(source.assignee);
     const old = source.data, sourcePs = paragraphs(source.body);
+    const hasNewTables=item.tables.some(table=>!t.tables.has(table.id));
     let title: XmlNode;
     if (equal(item.title, old.title)) {
       title = clone(sourcePs[0]);
@@ -208,7 +211,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         ? clone(templates[i]) : renderParagraph(templates[i] ?? templates[0] ?? standard, line, charId,!!templates[i] && !isNew)));
     }
     const tablePs = sourcePs.filter((p) => descendants(p, "hp:tbl").length);
-    const width=bodyContentWidth(destination);
+    const width=bodyContentWidth(destination,hasNewTables?tableStyles.inline.bodyMargin:undefined);
     validateTableLayout(item.tables,width,tableStyles);
     for(const row of tableRows(item.tables, tableStyles)) {
       const group=tablePs.find(p=>{
@@ -225,28 +228,38 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         });
         output.push(p);
       }else{
-        const fallback=[...t.items.values()].find(i=>i.data.tables.length)!;
-        const prototype=row.length>1?inlineParagraph(t):paragraphs(fallback.body).find(p=>descendants(p,"hp:tbl").length)!;
+        const prototype=inlineParagraph(t);
         const p=clone(prototype), runs=children(prototype,"hp:run");
         const nested=row.map(model=>{
           const baseline=old.tables.find(tbl=>tbl.id===model.id);
-          const sourceTable=t.tables.get(model.id)??t.tables.get(fallback.data.tables[0].id)!;
-          const table=renderTable(model,sourceTable,baseline,width);
-          if(row.length>1)setAttribute(child(table,"hp:pos"),"treatAsChar","1");
+          const sourceTable=t.tables.get(model.id)??tablePrototype;
+          const available=row.length===1 ? width-tableStyles.inline.trailing-tableStyles.inline.leading : width;
+          const table=renderTable(model,sourceTable,baseline,available);
+          setAttribute(child(table,"hp:pos"),"treatAsChar","1");
           return table;
         });
-        if(row.length>1){
-          const first=clone(runs[0]); first.children=first.children.filter(c=>typeof c==="string"||c.name!=="hp:tbl");
-          first.children.push(nested[0]);
-          p.children=[first];
-          for(const table of nested.slice(1)){
-            p.children.push(clone(runs[1]));
-            const run=clone(runs[2]); run.children=[table]; p.children.push(run);
+        const first=clone(runs[0]); first.children=first.children.filter(c=>typeof c==="string"||c.name!=="hp:tbl");
+        first.children.push(nested[0]);
+        p.children=[first];
+        for(const table of nested.slice(1)){
+          p.children.push(clone(runs[1]));
+          const run=clone(runs[2]); run.children=[table]; p.children.push(run);
+        }
+        p.children.push(clone(runs[3]));
+        if(!descendants(output.at(-1)!,"hp:tbl").length && row.some(table=>!t.tables.has(table.id))){
+          const baseId=p.attributes.paraPrIDRef,key=`${baseId}/table-before`;
+          let id=paraCache.get(key);
+          if(!id){
+            const property=clone(t.paraProperties.get(baseId)!);
+            id=String(t.paraProperties.size);
+            setAttribute(property,"id",id);
+            for(const [i,margin] of descendants(property,"hh:margin").entries())
+              setAttribute(child(margin,"hc:prev"),"value",tableStyles.inline.beforeSpacing*(i+1));
+            const list=descendants(t.header,"hh:paraProperties")[0];
+            list.children.push(property);t.paraProperties.set(id,property);
+            setAttribute(list,"itemCnt",t.paraProperties.size);paraCache.set(key,id);
           }
-          p.children.push(clone(runs[3]));
-        }else {
-          p.children=[element('<hp:run charPrIDRef="36"></hp:run>')];
-          child(p,"hp:run").children=[nested[0],element("<hp:t/>")];
+          setAttribute(p,"paraPrIDRef",id);
         }
         freshIds(p);
         output.push(p);
@@ -257,33 +270,58 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         setAttribute(child(table, "hp:outMargin"), "bottom", "0");
     if (isNew || !equal([item.title, item.content, item.notes, layoutTables(item.tables)],
       [old.title, old.content, old.notes, layoutTables(old.tables)])) {
-      // Only the tallest original cell's slack is padding; Hancom recreates row slack.
-      const row = children(source.table, "hp:tr").find((r) => children(r, "hp:tc").includes(source.body))!;
-      const padding = children(row, "hp:tc").map((cell) => {
-        const ps = paragraphs(cell), last = ps[ps.length - 1];
-        const lines = children(last, "hp:linesegarray").flatMap((a) => children(a, "hp:lineseg"));
-        const paraMargin = descendants(t.paraProperties.get(last.attributes.paraPrIDRef)!, "hh:margin")[0];
-        const extent = Math.max(...lines.map((line) => Number(line.attributes.vertpos) + Number(line.attributes.vertsize))) +
-          Number(child(paraMargin, "hc:next").attributes.value);
-        const effective = cell.attributes.hasMargin === "1" ? child(cell, "hp:cellMargin") : child(source.table, "hp:inMargin");
-        const slack = Number(child(cell, "hp:cellSz").attributes.height) - extent -
-          Number(effective.attributes.top) - Number(effective.attributes.bottom);
-        return { slack, above: child(cell, "hp:subList").attributes.vertAlign === "CENTER" ? Math.floor(slack / 2) : 0 };
-      }).reduce((a, b) => a.slack <= b.slack ? a : b);
       const margin = child(body, "hp:cellMargin");
-      const effective = body.attributes.hasMargin === "1" ? margin : child(source.table, "hp:inMargin");
-      const top = Number(effective.attributes.top), bottom = Number(effective.attributes.bottom);
-      for (const side of ["left", "right"]) setAttribute(margin, side, effective.attributes[side]);
-      setAttribute(margin, "top", top + padding.above);
-      setAttribute(margin, "bottom", bottom + padding.slack - padding.above);
+      if(hasNewTables){
+        for(const side of ["left","right","top","bottom"] as const)
+          setAttribute(margin,side,tableStyles.inline.bodyMargin[side]);
+        setAttribute(child(body,"hp:subList"),"vertAlign","CENTER");
+        let height=0,spacing=0;
+        for(const [index,p] of output.entries()){
+          const property=t.paraProperties.get(p.attributes.paraPrIDRef)!;
+          const paraMargin=descendants(property,"hh:margin")[0];
+          const lines=children(p,"hp:linesegarray").flatMap(a=>children(a,"hp:lineseg"));
+          const tables=descendants(p,"hp:tbl");
+          const fontHeight=Math.max(...children(p,"hp:run").map(run=>
+            Number(t.charProperties.get(run.attributes.charPrIDRef)!.attributes.height)));
+          const paragraphHeight=tables.length?Math.max(...tables.map(table=>Number(child(table,"hp:sz").attributes.height))):
+            lines.length?Number(lines.at(-1)!.attributes.vertpos)+Number(lines.at(-1)!.attributes.vertsize)-
+              Number(lines[0].attributes.vertpos):fontHeight;
+          height+=(index?spacing+Number(child(paraMargin,"hc:prev").attributes.value):0)+paragraphHeight;
+          spacing=(lines.length&&!tables.length?Number(lines.at(-1)!.attributes.spacing):
+            Math.round(fontHeight*(Number(descendants(property,"hh:lineSpacing")[0].attributes.value)-100)/100))+
+            Number(child(paraMargin,"hc:next").attributes.value);
+        }
+        setAttribute(child(body,"hp:cellSz"),"height",height+tableStyles.inline.bodyMargin.top+
+          tableStyles.inline.bodyMargin.bottom+tableStyles.inline.slack);
+      }else{
+        // Only the tallest original cell's slack is padding; Hancom recreates row slack.
+        const row = children(source.table, "hp:tr").find((r) => children(r, "hp:tc").includes(source.body))!;
+        const padding = children(row, "hp:tc").map((cell) => {
+          const ps = paragraphs(cell), last = ps[ps.length - 1];
+          const lines = children(last, "hp:linesegarray").flatMap((a) => children(a, "hp:lineseg"));
+          const paraMargin = descendants(t.paraProperties.get(last.attributes.paraPrIDRef)!, "hh:margin")[0];
+          const extent = Math.max(...lines.map((line) => Number(line.attributes.vertpos) + Number(line.attributes.vertsize))) +
+            Number(child(paraMargin, "hc:next").attributes.value);
+          const effective = cell.attributes.hasMargin === "1" ? child(cell, "hp:cellMargin") : child(source.table, "hp:inMargin");
+          const slack = Number(child(cell, "hp:cellSz").attributes.height) - extent -
+            Number(effective.attributes.top) - Number(effective.attributes.bottom);
+          return { slack, above: child(cell, "hp:subList").attributes.vertAlign === "CENTER" ? Math.floor(slack / 2) : 0 };
+        }).reduce((a, b) => a.slack <= b.slack ? a : b);
+        const effective = body.attributes.hasMargin === "1" ? margin : child(source.table, "hp:inMargin");
+        const paddingMargin = bodyMargins(source);
+        const top = Number(paddingMargin.top), bottom = Number(paddingMargin.bottom);
+        for (const side of ["left", "right"]) setAttribute(margin, side, effective.attributes[side]);
+        setAttribute(margin, "top", top + padding.above);
+        setAttribute(margin, "bottom", bottom + padding.slack - padding.above);
+        setAttribute(child(body, "hp:subList"), "vertAlign", "TOP");
+        setAttribute(child(body, "hp:cellSz"), "height", "0");
+      }
       setAttribute(body, "hasMargin", "1");
-      setAttribute(child(body, "hp:subList"), "vertAlign", "TOP");
-      setAttribute(child(body, "hp:cellSz"), "height", "0");
       for (const p of output.flatMap((p) => [p, ...descendants(p, "hp:p")]))
         p.children = p.children.filter((c) => typeof c === "string" || c.name !== "hp:linesegarray");
     }
     const destinationMargin=bodyMargins(destination), currentMargin=bodyMargins({body,table:source.table});
-    if(["left","right"].some(side=>destinationMargin[side]!==currentMargin[side])){
+    if(!hasNewTables && ["left","right"].some(side=>destinationMargin[side]!==currentMargin[side])){
       const margin=child(body,"hp:cellMargin");
       for(const side of ["top","bottom"])setAttribute(margin,side,currentMargin[side]);
       for(const side of ["left","right"])setAttribute(margin,side,destinationMargin[side]);

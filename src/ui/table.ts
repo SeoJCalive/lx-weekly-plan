@@ -22,7 +22,7 @@ function widths(width:number,n:number) {
 }
 export function newTable(rows:number,columns:number,width:number,height:number):WorkTable {
   return {id:crypto.randomUUID(),rows,columns,columnWidths:widths(width,columns),rowHeights:Array(rows).fill(height),
-    caption:[],cells:Array.from({length:rows*columns},(_,i)=>blank(Math.floor(i/columns),i%columns))};
+    caption:[],cells:Array.from({length:rows*columns},(_,i)=>({...blank(Math.floor(i/columns),i%columns),alignment:"center"}))};
 }
 export function resize(table:WorkTable,axis:"row"|"column",remove:number|null) {
   const horizontal=axis==="column",size=horizontal?table.columns:table.rows;
@@ -43,7 +43,7 @@ export function resize(table:WorkTable,axis:"row"|"column",remove:number|null) {
   if(remove===null)for(let i=0;i<(horizontal?table.rows:table.columns);i++) {
     const row=horizontal?i:size-1,column=horizontal?size-1:i;
     const neighbour=table.cells.find(c=>c.row<=row && row<c.row+c.rowSpan && c.column<=column && column<c.column+c.colSpan)!;
-    cells.push({...(horizontal?blank(i,size):blank(size,i)),styleFrom:cellOrigin(neighbour)});
+    cells.push({...(horizontal?blank(i,size):blank(size,i)),alignment:neighbour.alignment,styleFrom:cellOrigin(neighbour)});
   }
   if(!horizontal)return {...table,cells:cells.sort(order),rows:n,rowHeights:remove===null?
     [...table.rowHeights,table.rowHeights.findLast(h=>h>0) ?? 0]:table.rowHeights.filter((_,i)=>i!==remove)};
@@ -99,6 +99,6 @@ export function split(table:WorkTable,c:TableCell) {
   const cells=table.cells.filter(x=>x!==c);
   for(let r=c.row;r<c.row+c.rowSpan;r++)for(let col=c.column;col<c.column+c.colSpan;col++)
     cells.push(r===c.row && col===c.column?{...c,rowSpan:1,colSpan:1}:
-      {...blank(r,col),...(c.styleFrom?{styleFrom:c.styleFrom}:{}),...(c.background?{background:c.background}:{})});
+      {...blank(r,col),alignment:c.alignment,...(c.styleFrom?{styleFrom:c.styleFrom}:{}),...(c.background?{background:c.background}:{})});
   return {...table,cells:cells.sort(order)};
 }

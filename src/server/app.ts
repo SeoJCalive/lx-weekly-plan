@@ -316,7 +316,8 @@ export function createApp({ db, templateBytes, now = Date.now }: {
             const department = template.departments.find(department => department.data.id === row.departmentId) ?? template.departments[0];
             const source = template.items.get(previous.templateItemId ?? previous.id) ??
               template.items.get(department.data.items[row.category][0].id)!;
-            try { validateTableLayout(input.tables, bodyContentWidth(source), tableStyles); } catch (error) {
+            try { validateTableLayout(input.tables, bodyContentWidth(source,input.tables.some(table=>!tableStyles.tables[table.id])?
+              tableStyles.inline.bodyMargin:undefined), tableStyles); } catch (error) {
               if (error instanceof Error) throw new ApiFailure(400, error.message);
               throw error;
             }

@@ -5,7 +5,8 @@ export const tableWidthError = "앞 표와 합친 폭이 본문보다 넓어 옆
 
 export function validateTableLayout(tables: WorkTable[], width: number, styles: TableStyles): void {
   for (const row of tableRows(tables, styles))
-    if (row.length > 1 && tableRowWidth(row, styles) > width) throw Error(tableWidthError);
+    if (row.length > 1 && tableRowWidth(row, styles) > width-styles.inline.trailing)
+      throw Error(tableWidthError);
 }
 
 /** Structural contract shared by the save endpoint and the Hancom exporter. */

@@ -2,13 +2,14 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { plainText, sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
 import { formLayout } from "./form-layout" with {type:"macro"};
 import { formRuns } from "../shared/form-runs";
-import { tableCellStyle, tableMargins, tableRows } from "../shared/table-style";
+import { tableCellStyle, tableMargins, tablePartWidth, tableRowLeading, tableRows } from "../shared/table-style";
 
 const layout = await formLayout();
 export const tableStyles=layout.tableStyles;
-export const tableGeometry=(id:string,fallback:string)=>({
-  width:(layout.byItem[id]??layout.byItem[fallback])[2],height:layout.rowHeight,
-  bodyWidth:(layout.byItem[id]??layout.byItem[fallback])[2]+tableStyles.margin.left+tableStyles.margin.right});
+export const tableGeometry=(id:string,fallback:string)=>{
+  const bodyWidth=(layout.byItem[id]??layout.byItem[fallback])[2]+tableStyles.margin.left+tableStyles.margin.right;
+  return {width:tablePartWidth(1,bodyWidth,tableStyles),height:layout.rowHeight,bodyWidth};
+};
 const px = (units: number) => units/75;
 export function Runs({line}:{line:RichText}) {
   return <>{line.map((s,i) => <span key={i} data-color={s.color}
@@ -21,25 +22,28 @@ function Title({item,number}:{item:WorkItem;number:number}){
 }
 export function Nested({table}:{table:WorkTable}) {
   const total = table.columnWidths.reduce((a,b)=>a+b);
-  return <table className="nested" style={{width:px(total)}}>
+  return <table className="nested" style={{width:"100%"}}>
     {!!table.caption.length && <caption>{table.caption.map((l,i)=><div key={i}><Runs line={l}/></div>)}</caption>}
     <colgroup>{table.columnWidths.map((n,i)=><col key={i} style={{width:`${n/total*100}%`}}/>)}</colgroup>
     <tbody>{Array.from({length:table.rows},(_,r)=><tr key={r} style={{height:px(table.rowHeights[r])}}>
       {table.cells.filter(c=>c.row===r).sort((a,b)=>a.column-b.column).map(c=>{
         const style=tableCellStyle(table,c,layout.tableStyles);
         return <td key={c.column} rowSpan={c.rowSpan} colSpan={c.colSpan}
-          style={{textAlign:c.alignment,background:style.background,fontSize:`${style.fontSize}pt`,fontWeight:style.bold?700:400}}>
+          style={{textAlign:c.alignment,background:style.background,fontSize:`${style.fontSize}pt`,fontWeight:style.bold?700:400,
+            fontFamily:`"${style.fontFamily}",var(--form-sans)`,lineHeight:style.lineHeight,letterSpacing:`${style.letterSpacing}em`,
+            padding:`${px(style.padding.top)}px ${px(style.padding.right)}px ${px(style.padding.bottom)}px ${px(style.padding.left)}px`,
+            borderLeft:style.borders.left,borderRight:style.borders.right,borderTop:style.borders.top,borderBottom:style.borders.bottom}}>
           {c.formula ? sumValue(table,c.formula) : c.paragraphs.map((l,i)=><div key={i}><Runs line={l}/></div>)}
         </td>;
       })}</tr>)}</tbody></table>;
 }
 export function TableRows({tables}:{tables:WorkTable[]}) {
-  return <div className="subtables">{tableRows(tables,tableStyles).map(row=>
+  return <div className="subtables" style={{marginTop:!tableStyles.tables[tables[0].id]?px(tableStyles.inline.beforeSpacing):0}}>{tableRows(tables,tableStyles).map(row=>
     <div className="table-row" key={row[0].id} style={{
-      paddingLeft:row.length>1?px(tableStyles.inline.leading):0,gap:row.length>1?px(tableStyles.inline.gap):0}}>
+      paddingLeft:px(tableRowLeading(row,tableStyles)),gap:row.length>1?px(tableStyles.inline.gap):0}}>
       {row.map(table=>{
         const margin=tableMargins(table,tableStyles);
-        return <div className="table-slot" key={table.id} style={{marginLeft:px(margin.left),marginRight:px(margin.right)}}>
+        return <div className="table-slot" key={table.id} style={{width:px(table.columnWidths.reduce((a,b)=>a+b,0)),marginLeft:px(margin.left),marginRight:px(margin.right)}}>
           <Nested table={table}/>
         </div>;
       })}
@@ -47,7 +51,12 @@ export function TableRows({tables}:{tables:WorkTable[]}) {
 }
 function rows(groups: (WorkItem|undefined)[][], ongoing=false, options?:{history?:(id:string)=>void;number?:number}) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
-    <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
+    <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{
+      height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900)),
+      ...(item?.tables.some(table=>!tableStyles.tables[table.id])?{
+        height:"auto",
+        padding:`${px(tableStyles.inline.bodyMargin.top+Math.floor(tableStyles.inline.slack/2))}px ${px(tableStyles.inline.bodyMargin.right)}px ${px(tableStyles.inline.bodyMargin.bottom+tableStyles.inline.slack-Math.floor(tableStyles.inline.slack/2))}px ${px(tableStyles.inline.bodyMargin.left)}px`,
+        verticalAlign:"middle"}:{})}}>
       {item && <>{options?.history?<button className="doc-history" title="처리 이력" aria-label={`${plainText(item.title)} 처리 이력`} onClick={()=>options.history?.(item.id)}>
         <Title item={item} number={options.number??i+1}/>
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
