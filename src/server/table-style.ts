@@ -48,7 +48,9 @@ export function templateTableStyles(template: Template): TableStyles {
           cells[`${r}/${c}`] = style(cell, template.tables.get(table.id)!);
     }
     const margin = child(template.tables.get(table.id)!, "hp:outMargin").attributes;
+    const paragraph=paragraphs(item.body).find(p=>descendants(p,"hp:tbl").some(t=>t.attributes.id===table.id))!;
     tables[table.id] = { rows: table.rows, columns: table.columns, cells, beside: table.beside ?? false,
+      inline:descendants(paragraph,"hp:tbl").length>1,
       margin: { left: Number(margin.left), right: Number(margin.right) } };
   }
   const paragraph=inlineParagraph(template),inlineTables=descendants(paragraph,"hp:tbl");
@@ -63,13 +65,20 @@ export function templateTableStyles(template: Template): TableStyles {
     child(fills.get(cell.borderFillId)!,`hh:${side}Border`).attributes.type==="SOLID"))!;
   const spaceWidth = (run: XmlNode) => Number(template.charProperties.get(run.attributes.charPrIDRef)!.attributes.height) / 2;
   const leading=spaceWidth(runs[0]),gap=spaceWidth(runs[1]);
+  const property=template.paraProperties.get(paragraph.attributes.paraPrIDRef)!;
+  const lineSpacing=Number(descendants(property,"hh:lineSpacing")[0].attributes.value);
+  const paraMargin=descendants(property,"hh:margin")[0];
+  const spacing=(rowRuns:XmlNode[])=>Math.round(Math.max(...rowRuns.map(run=>
+    Number(template.charProperties.get(run.attributes.charPrIDRef)!.attributes.height)))*(lineSpacing-100)/100)+
+    Number(child(paraMargin,"hc:prev").attributes.value)+Number(child(paraMargin,"hc:next").attributes.value);
   const width=inlineTables.reduce((width,table)=>width+Number(child(table,"hp:sz").attributes.width)+
     Number(child(table,"hp:outMargin").attributes.left)+Number(child(table,"hp:outMargin").attributes.right),
     leading+gap*(inlineTables.length-1));
   return { tables,
     header: {...prototype.cells["0/0"],borderFillId:grid.borderFillId,borders:{...grid.borders,top:prototype.cells["0/0"].borders.top}},
     body: {...prototype.cells[`${prototype.rows - 1}/0`],borderFillId:grid.borderFillId,borders:grid.borders},
-    margin: prototype.margin, inline: {leading,gap,trailing:bodyContentWidth(owner)-width,beforeSpacing:408,slack,
+    margin: prototype.margin, inline: {leading,gap,trailing:bodyContentWidth(owner)-width,beforeSpacing:408,
+      rowSpacing:spacing([runs[0],runs[3]]),groupSpacing:spacing(runs),slack,
       bodyMargin:{left:Number(bodyMargin.left),right:Number(bodyMargin.right),top:Number(bodyMargin.top),bottom:Number(bodyMargin.bottom)}} };
 }
 

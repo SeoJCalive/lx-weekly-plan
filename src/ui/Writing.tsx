@@ -4,6 +4,7 @@ import { categories, plainText, type WorkCategory } from "../shared/weekly-plan"
 import { api } from "./api";
 import { Preview, tableGeometry, tableStyles } from "./Preview";
 import { validateTableLayout } from "../shared/table-validation";
+import { arrangeTables, removeTable, tableRows } from "../shared/table-style";
 import { marked, sameLine } from "./text";
 import { EmphasisField } from "./EmphasisField";
 import { TableEditor } from "./TableEditor";
@@ -234,11 +235,21 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
             change={notes=>setDraft({...draft,notes})}/>
           {editable ? <fieldset className="table-field" disabled={busy}><legend>표</legend>
             {draft.tables.map((table,i)=><TableEditor key={table.id} table={table} index={i+1}
+              rowIndex={tableRows(draft.tables,tableStyles).find(row=>row.includes(table))!.indexOf(table)}
               styles={tableStyles} bodyWidth={tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth}
-              validate={next=>validateTableLayout(draft.tables.map(t=>t===table?next:t),
+              validate={next=>validateTableLayout(arrangeTables(draft.tables.map(t=>t===table?next:t),
+                tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth,tableStyles),
                 tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth,tableStyles)}
-              change={next=>setDraft({...draft,tables:draft.tables.map(t=>t===table?next:t)})}
-              remove={()=>setDraft({...draft,tables:draft.tables.filter(t=>t!==table)})}/>)}
+              change={next=>setDraft({...draft,tables:arrangeTables(draft.tables.map(t=>t===table?next:t),
+                tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth,tableStyles)})}
+              remove={()=>{
+                const tables=arrangeTables(removeTable(draft.tables,table.id,tableStyles),
+                  tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth,tableStyles);
+                try {
+                  validateTableLayout(tables,tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth,tableStyles);
+                  setDraft({...draft,tables});setError("");
+                }catch(e){if(e instanceof Error)setError(e.message);else throw e;}
+              }}/>)}
             <button type="button" onClick={()=>{
               const {width,height}=tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`);
               setDraft({...draft,tables:[...draft.tables,newTable(cat==="ongoing"?3:2,cat==="ongoing"?4:3,width,height)]});

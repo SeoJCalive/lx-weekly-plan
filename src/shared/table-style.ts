@@ -16,10 +16,10 @@ export interface TableStyles {
   header: TableCellStyle;
   body: TableCellStyle;
   margin: { left: number; right: number };
-  inline: { leading: number; gap: number; trailing: number; beforeSpacing: number; slack: number;
+  inline: { leading: number; gap: number; trailing: number; beforeSpacing: number; rowSpacing:number; groupSpacing:number; slack: number;
     bodyMargin: { left: number; right: number; top: number; bottom: number } };
   tables: Record<string, { rows: number; columns: number; cells: Record<string, TableCellStyle>;
-    beside: boolean; margin: { left: number; right: number } }>;
+    beside: boolean; inline:boolean; margin: { left: number; right: number } }>;
 }
 /** Cell origins survive insertions, deletions and merges without exposing a style control. */
 export const cellOrigin = (cell: TableCell): CellAddress => cell.styleFrom ?? { row: cell.row, column: cell.column };
@@ -40,12 +40,38 @@ export const besidePrevious = (table: WorkTable, styles: TableStyles): boolean =
   table.beside ?? styles.tables[table.id]?.beside ?? false;
 export const tableMargins = (table: WorkTable, styles: TableStyles) => styles.tables[table.id]?.margin ?? styles.margin;
 export const tableRowLeading = (tables: WorkTable[], styles: TableStyles) =>
-  tables.length>1 || !styles.tables[tables[0].id] ? styles.inline.leading : 0;
+  tables.length>1 || !styles.tables[tables[0].id] || styles.tables[tables[0].id].inline ? styles.inline.leading : 0;
+
+export function removeTable(tables:WorkTable[],id:string,styles:TableStyles):WorkTable[] {
+  return tableRows(tables,styles).flatMap(row=>{
+    const remaining=row.filter(table=>table.id!==id);
+    return row[0].id===id && remaining.length ? [{...remaining[0],beside:false},...remaining.slice(1)] : remaining;
+  });
+}
 
 export function tablePartWidth(parts:number,width:number,styles:TableStyles,margin=styles.margin,part=0):number {
   const available=width-styles.inline.trailing-parts*(margin.left+margin.right)-
     styles.inline.leading-styles.inline.gap*(parts-1);
   return Math.floor(available/parts)+(part===parts-1?available%parts:0);
+}
+
+export function arrangeTables(tables:WorkTable[],width:number,styles:TableStyles):WorkTable[] {
+  return tableRows(tables,styles).flatMap(row=>row.map((table,index)=>{
+    const parts=tableWidthParts(table,width,styles);
+    if(!parts)return table;
+    const total=table.columnWidths.reduce((a,b)=>a+b,0);
+    const next=tablePartWidth(parts,width,styles,tableMargins(table,styles),index%parts);
+    if(next===total)return table;
+    let used=0;
+    return {...table,columnWidths:table.columnWidths.map(w=>{
+      const start=Math.floor(used*next/total);used+=w;return Math.floor(used*next/total)-start;
+    })};
+  }));
+}
+
+export function tableWidthParts(table:WorkTable,width:number,styles:TableStyles):number|undefined {
+  const total=table.columnWidths.reduce((a,b)=>a+b,0),margin=tableMargins(table,styles);
+  return [1,2,3].find(parts=>[0,parts-1].some(part=>tablePartWidth(parts,width,styles,margin,part)===total));
 }
 
 /** Both preview and export use the same explicit rows, including legacy form defaults. */

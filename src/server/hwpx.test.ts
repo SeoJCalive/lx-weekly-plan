@@ -249,7 +249,7 @@ describe("weekly plan hwpx", () => {
     expect(strFromU8(unzipSync(generate(data))["Contents/section0.xml"]))
       .toBe(strFromU8(unzipSync(generate())["Contents/section0.xml"]));
     const original=readTemplate(template),styles=templateTableStyles(original);
-    expect(styles.inline).toEqual({leading:450,gap:550,trailing:534,beforeSpacing:408,slack:399,
+    expect(styles.inline).toEqual({leading:450,gap:550,trailing:534,beforeSpacing:408,rowSpacing:550,groupSpacing:600,slack:399,
       bodyMargin:{left:140,right:140,top:138,bottom:140}});
     expect(styles.margin).toEqual({left:0,right:0});
     for(const id of ["item-166","item-228","item-290"]){

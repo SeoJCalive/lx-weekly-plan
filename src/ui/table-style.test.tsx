@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { seed } from "../shared/seed";
-import { tableCellStyle } from "../shared/table-style";
+import { arrangeTables, removeTable, tableCellStyle, tableRows } from "../shared/table-style";
+import { validateTableLayout } from "../shared/table-validation";
 import { templateTableStyles } from "../server/table-style";
 import { paragraphs, readTemplate, tableCells } from "../server/template";
 import { generateHwpx } from "../server/hwpx";
@@ -10,6 +11,62 @@ import { child, children, descendants, parseXml } from "../server/xml";
 import { Nested, TableRows, tableGeometry } from "./Preview";
 import { merge, newTable, resize, split } from "./table";
 import { TableEditor } from "./TableEditor";
+
+test("deleting a row leader keeps its successor separate from the preceding full table",async()=>{
+  const styles=templateTableStyles(readTemplate(new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer())));
+  const full=newTable(3,4,50801,1466),left=newTable(3,4,25125,1466);
+  const right={...newTable(3,4,25126,1466),beside:true};
+  const remaining=removeTable([full,left,right],left.id,styles);
+  expect(tableRows(remaining,styles).map(row=>row.map(table=>table.id))).toEqual([[full.id],[right.id]]);
+  expect(()=>validateTableLayout(remaining,51785,styles)).not.toThrow();
+  expect(tableRows(removeTable([left,right],right.id,styles),styles)).toEqual([[left]]);
+  expect(removeTable([full],full.id,styles)).toEqual([]);
+});
+
+test("half widths use positions within each row after attaching or deleting tables",async()=>{
+  const template=new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer());
+  const styles=templateTableStyles(readTemplate(template));
+  const full=newTable(3,4,50801,1466),left=newTable(3,4,25125,1466);
+  const right={...newTable(3,4,25125,1466),beside:true};
+  const placed=arrangeTables([full,left,right],51785,styles);
+  expect(placed.map(table=>table.columnWidths.reduce((a,b)=>a+b,0))).toEqual([50801,25125,25126]);
+  const data=structuredClone(seed),item=data.departments[1].items.ongoing[0];
+  item.tables=placed;
+  const output=readTemplate(generateHwpx(data,template));
+  expect(descendants(output.items.get(item.id)!.body,"hp:tbl").map(table=>Number(child(table,"hp:sz").attributes.width)))
+    .toEqual([50801,25125,25126]);
+  const remaining=arrangeTables(removeTable(placed,left.id,styles),51785,styles);
+  expect(remaining[1].columnWidths.reduce((a,b)=>a+b,0)).toBe(25125);
+});
+
+test("a half-width choice stays selected when a preceding independent table is deleted",async()=>{
+  const styles=templateTableStyles(readTemplate(new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer())));
+  const table=newTable(3,4,25125,1466);
+  for(const index of [2,1]){
+    const editor=parseXml(renderToStaticMarkup(createElement(TableEditor,{table,index,rowIndex:0,styles,bodyWidth:51785,
+      change:()=>{},remove:()=>{},validate:()=>{}})));
+    expect(descendants(editor,"option").find(option=>"selected" in option.attributes)?.attributes.value).toBe("2");
+  }
+});
+
+test("separate new table rows preserve the output paragraph's vertical space",()=>{
+  const tables=[newTable(3,4,25125,1466),newTable(3,4,25125,1466)];
+  const preview=parseXml(renderToStaticMarkup(createElement(TableRows,{tables})));
+  const rows=descendants(preview,"div").filter(node=>node.attributes.class==="table-row");
+  expect(rows).toHaveLength(2);
+  expect(rows[1].attributes.style).toContain(`margin-top:${550/75}px`);
+  const attached=parseXml(renderToStaticMarkup(createElement(TableRows,{tables:[tables[0],{...tables[1],beside:true}]})));
+  expect(descendants(attached,"div").filter(node=>node.attributes.class==="table-row")).toHaveLength(1);
+});
+
+test("detached original inline tables keep their leading space on both preview rows",()=>{
+  const tables=structuredClone(seed.departments[2].items.ongoing[0].tables);
+  tables[1].beside=false;
+  const preview=parseXml(renderToStaticMarkup(createElement(TableRows,{tables})));
+  const rows=descendants(preview,"div").filter(node=>node.attributes.class==="table-row");
+  expect(rows).toHaveLength(2);
+  for(const row of rows)expect(row.attributes.style).toContain("padding-left:6px");
+});
 
 test("seed, new and expanded table cell styles agree in the shared rule, preview and output", async()=>{
   const template=new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer());
@@ -114,7 +171,7 @@ test.each([[1,50801,1],[2,25125,1],[2,25126,2],[3,16567,1]])("new table width ch
   const template=new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer());
   const styles=templateTableStyles(readTemplate(template));
   const geometry=tableGeometry("item-108","department-2/ongoing"),table=newTable(3,4,width,geometry.height);
-  const editor=parseXml(renderToStaticMarkup(createElement(TableEditor,{table,index,styles,bodyWidth:geometry.bodyWidth,
+  const editor=parseXml(renderToStaticMarkup(createElement(TableEditor,{table,index,rowIndex:index-1,styles,bodyWidth:geometry.bodyWidth,
     change:()=>{},remove:()=>{},validate:()=>{}})));
   expect(descendants(editor,"option").find(option=>"selected" in option.attributes)?.attributes.value).toBe(String(parts));
 });

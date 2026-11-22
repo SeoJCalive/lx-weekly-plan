@@ -1,15 +1,15 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { sumValue, type TableCell, type WorkTable } from "../shared/weekly-plan";
 import { validateTable } from "../shared/table-validation";
-import { besidePrevious, tableCellStyle, tableMargins, tablePartWidth, type TableStyles } from "../shared/table-style";
+import { besidePrevious, tableCellStyle, tableMargins, tablePartWidth, tableWidthParts, type TableStyles } from "../shared/table-style";
 import { editLines, linesText } from "./text";
 import { cellName, intersects, merge, paint, resize, selectedRange, split, sumSelection } from "./table";
 import { startsWord, useUndo, type Caret, type Step, type Typing } from "./undo";
 
 const caretIn=(el:HTMLTextAreaElement):Caret=>({cell:el.getAttribute("aria-label")!,start:el.selectionStart,end:el.selectionEnd});
 
-export function TableEditor({table,index,change,remove,styles,bodyWidth,validate}:{
-  table:WorkTable;index:number;change:(next:WorkTable)=>void;remove:()=>void;
+export function TableEditor({table,index,rowIndex,change,remove,styles,bodyWidth,validate}:{
+  table:WorkTable;index:number;rowIndex:number;change:(next:WorkTable)=>void;remove:()=>void;
   styles:TableStyles;bodyWidth:number;validate:(next:WorkTable)=>void}) {
   const [active,setActive]=useState("A1"),[end,setEnd]=useState("A1"),[error,setError]=useState("");
   const dragging=useRef(false),box=useRef<HTMLElement>(null),before=useRef<Caret>({start:0,end:0}),restored=useRef<Caret|null>(null);
@@ -46,8 +46,8 @@ export function TableEditor({table,index,change,remove,styles,bodyWidth,validate
     setActive(cellName(cells[0]));setEnd(cellName(cells[cells.length-1]));setError("");
   }
   const margin=tableMargins(table,styles),total=table.columnWidths.reduce((a,b)=>a+b,0);
-  const widthFor=(parts:number)=>tablePartWidth(parts,bodyWidth,styles,margin,(index-1)%parts);
-  const sizes=[1,2,3],size=sizes.find(n=>widthFor(n)===total);
+  const widthFor=(parts:number)=>tablePartWidth(parts,bodyWidth,styles,margin,rowIndex%parts);
+  const size=tableWidthParts(table,bodyWidth,styles);
   function setWidth(parts:number){
     const width=widthFor(parts);let used=0;
     apply({...table,columnWidths:table.columnWidths.map(w=>{

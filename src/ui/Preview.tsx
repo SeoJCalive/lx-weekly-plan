@@ -38,8 +38,10 @@ export function Nested({table}:{table:WorkTable}) {
       })}</tr>)}</tbody></table>;
 }
 export function TableRows({tables}:{tables:WorkTable[]}) {
-  return <div className="subtables" style={{marginTop:!tableStyles.tables[tables[0].id]?px(tableStyles.inline.beforeSpacing):0}}>{tableRows(tables,tableStyles).map(row=>
+  const rows=tableRows(tables,tableStyles);
+  return <div className="subtables" style={{marginTop:!tableStyles.tables[tables[0].id]?px(tableStyles.inline.beforeSpacing):0}}>{rows.map((row,index)=>
     <div className="table-row" key={row[0].id} style={{
+      marginTop:index?px(rows[index-1].length>1?tableStyles.inline.groupSpacing:tableStyles.inline.rowSpacing):0,
       paddingLeft:px(tableRowLeading(row,tableStyles)),gap:row.length>1?px(tableStyles.inline.gap):0}}>
       {row.map(table=>{
         const margin=tableMargins(table,tableStyles);
