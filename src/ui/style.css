@@ -283,10 +283,10 @@ label input,label select,label textarea {font-weight:400}
 .account-list {display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--s2)}
 .account-list button {align-items:flex-start;flex-direction:column;padding:var(--s2) var(--s3);text-align:left;border-color:var(--edge)}
 .account-list span,.account-list small {font-size:var(--caption);font-weight:400;color:var(--mute)}
-.account-head {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:var(--s4) var(--s6);margin-bottom:var(--s6)}
+.account-head {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:var(--s4) var(--s6);margin-bottom:var(--s6)}
 .account-head>div>p {margin-top:var(--s2);font-size:var(--small)}
 .account-head p.recommend-note {margin-top:var(--s3);color:var(--action);font-weight:600}
-.recommend-focus {flex:1 1 20rem;max-width:30rem;color:var(--action);font-size:var(--small)}
+.recommend-focus {flex:0 0 auto;margin-left:auto;color:var(--action);font-size:var(--small)}
 .recommend-focus dl {display:grid;grid-template-columns:auto 1fr;gap:var(--s1) var(--s3);margin:0}
 .recommend-focus dl>div {display:contents}
 .recommend-focus dt {font-weight:600}
