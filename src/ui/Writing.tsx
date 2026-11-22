@@ -60,6 +60,8 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   const [label,setLabel]=useState(initial.labels.thisWeek), [editLabel,setEditLabel]=useState(false);
   const [busy,setBusy]=useState(false), [error,setError]=useState(""), [feedback,setFeedback]=useState("");
   const [note,setNote]=useState("");
+  const [toolField,setToolField]=useState("title"),[toolbar,setToolbar]=useState<HTMLDivElement|null>(null);
+  const tools=(name:string)=>({toolbar:toolField===name?toolbar:null,activate:()=>setToolField(name)});
   const working=useRef(false), current=useRef<string|undefined>(first?.id), live=useRef(true), held=useRef<string|undefined>(undefined);
   const [online,setOnline]=useState(navigator.onLine);
   const [,setLastContact]=useState(Date.now());
@@ -74,7 +76,7 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
       ? d.items[it.category].map(x=>x.id===it.id?it:x) : [...d.items[it.category],it]}}));
   }
   function select(it:ItemView|undefined) {
-    if(current.current!==it?.id)setNote("");
+    if(current.current!==it?.id){setNote("");setToolField("title");}
     current.current=it?.id;held.current=it?.lock?.personId===person.id ? it.id : undefined;
     setItem(it);setDraft(it);
     if (it) {replace(it);sessionStorage.setItem(key,it.id);}
@@ -214,11 +216,12 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
         {item.review.version?.note && <ReviewCard key={`note:${item.review.version.id}`} kind="note"
           message={item.review.version.note} at={item.review.version.requestedAt} open/>}
         <form className="fields" onSubmit={e=>{e.preventDefault();if(editable && dirty)void action(save);}}>
-          <EmphasisField key={`${draft.id}/title`} id="item-title" label="제목" lines={[draft.title]} readOnly={!editable || busy}
+          <EmphasisField {...tools("title")} key={`${draft.id}/title`} id="item-title" label="제목" lines={[draft.title]} readOnly={!editable || busy}
             change={([title])=>setDraft({...draft,title})}/>
-          <EmphasisField key={`${draft.id}/content`} id="item-content" label="내용" rows={3} lines={draft.content} readOnly={!editable || busy}
+          <div ref={setToolbar} hidden={!editable || busy}/>
+          <EmphasisField {...tools("content")} key={`${draft.id}/content`} id="item-content" label="내용" rows={3} lines={draft.content} readOnly={!editable || busy}
             change={content=>setDraft({...draft,content})}/>
-          <EmphasisField key={`${draft.id}/notes`} id="item-notes" label="부가 설명" rows={2} lines={draft.notes} readOnly={!editable || busy}
+          <EmphasisField {...tools("notes")} key={`${draft.id}/notes`} id="item-notes" label="부가 설명" rows={2} lines={draft.notes} readOnly={!editable || busy}
             change={notes=>setDraft({...draft,notes})}/>
           {editable ? <fieldset className="table-field" disabled={busy}><legend>업무 표</legend>
             {draft.tables.map((table,i)=><TableEditor key={table.id} table={table} index={i+1}

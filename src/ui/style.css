@@ -94,6 +94,13 @@ label input,label select,label textarea {font-weight:400}
 .items li[data-locked=true][data-returned=true],.editor[data-locked=true][data-returned=true] {outline-width:1px;outline-offset:1px}
 .editor-badge {display:inline-grid;place-items:center;width:var(--s5);height:var(--s5);border-radius:50%;background:var(--writing);color:var(--paper);font-size:var(--caption);font-weight:600}
 .edit-tools:empty {border:0;padding:0;margin-bottom:var(--s4)}
+@media (min-width:861px) and (max-height:760px) {
+  #writing {padding-top:var(--s3)}
+  #writing .page-heading {padding-bottom:var(--s3)}
+  #writing .editor {margin-top:var(--s3)}
+  #writing .edit-tools:empty {display:none}
+  #writing .review-card {margin-block:var(--s2)}
+}
 .save-dot {width:var(--s2);height:var(--s2);border-radius:50%;background:var(--approved)}
 .save-dot[data-dirty=true] {background:var(--returned)}
 .assignment-end {margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line);text-align:right}

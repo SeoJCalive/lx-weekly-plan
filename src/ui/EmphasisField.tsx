@@ -1,9 +1,10 @@
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { type RichText } from "../shared/weekly-plan";
 import { editLines, editText, emphasize, linesText, selectionMarks, type Emphasis } from "./text";
 
-export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;label:string;lines:RichText[];
-  rows?:number;readOnly:boolean;change:(lines:RichText[])=>void}) {
+export function EmphasisField({id,label,lines,rows,readOnly,toolbar,activate,change}:{id:string;label:string;lines:RichText[];
+  rows?:number;readOnly:boolean;toolbar:HTMLElement|null;activate:()=>void;change:(lines:RichText[])=>void}) {
   const field=useRef<HTMLInputElement|HTMLTextAreaElement|null>(null);
   const mirror=useRef<HTMLDivElement|null>(null);
   const visited=useRef(false),caret=useRef<number|null>(null);
@@ -38,7 +39,7 @@ export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;l
     change(rows ? editLines(lines,value) : [editText(lines[0],value,true)]);
   }
   const attrs={id,readOnly,value:linesText(lines),ref:(el:HTMLInputElement|HTMLTextAreaElement|null)=>{field.current=el;},
-    onFocus:()=>{visited.current=true;},
+    onFocus:()=>{visited.current=true;activate();},
     onSelect:()=>{const el=field.current;if(el)setRange([el.selectionStart??0,el.selectionEnd??0]);},
     onScroll:sync,
     onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>)=>update(e.target.value)};
@@ -59,7 +60,7 @@ export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;l
     el.focus();el.setSelectionRange(range[0],range[1]);
   }
   return <div className="emphasis-field"><label htmlFor={id}>{label}</label>
-    {!readOnly && <div className="field-tools">
+    {!readOnly && toolbar && createPortal(<div className="field-tools" role="group" aria-label={`${label} 편집 도구`}>
     <div className="mark-tools" role="group" aria-label={`${label} 선택 글자 강조`}>
       {([["bold","굵게"],["blue","파랑"],["red","빨강"]] as const).map(([mark,text])=>
         <button type="button" key={mark} data-mark={mark} aria-pressed={pressed.includes(mark)} disabled={range[0]===range[1]} onMouseDown={e=>e.preventDefault()}
@@ -69,7 +70,7 @@ export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;l
         ["□","빈 사각형"],["○ (내용) ","내용 머리말"]] as const).map(([text,name])=>
         <button type="button" key={text} aria-label={`${name} 넣기`} title={`${name} 넣기`}
           onMouseDown={e=>e.preventDefault()} onClick={()=>insert(text)}>{text}</button>)}
-    </div></div>}
+    </div></div>,toolbar)}
     <div className="emphasis-box" data-multiline={!!rows} data-readonly={readOnly}>
       <div className="emphasis-mirror" ref={mirror} aria-hidden="true">{lines.map((line,i)=>
         <Fragment key={i}>{i>0 && "\n"}{line.map((span,j)=>
