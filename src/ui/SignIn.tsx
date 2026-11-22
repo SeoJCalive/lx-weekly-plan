@@ -2,8 +2,8 @@ import { useState, type FormEvent } from "react";
 import type { Organisation, Person, SignInRequest } from "../shared/api";
 import { api, roles } from "./api";
 
-const demoOrder = [["W2001", "작성"], ["R0002", "처 검토"], ["O0001", "실 검토"], ["D0001", "최종 승인"]] as const;
-const demoNumbers = new Set<string>(demoOrder.map(([number]) => number));
+const demoOrder = ["W2001", "R0002", "O0001", "D0001"];
+const demoNumbers = new Set(demoOrder);
 
 export function SignIn({ accounts, units, onSignIn }: {
   accounts: Person[]; units: Organisation[]; onSignIn: (person: Person) => void;
@@ -24,10 +24,7 @@ export function SignIn({ accounts, units, onSignIn }: {
       departmentId: String(data.get("department")), title: String(data.get("title")).trim(),
     } : {}) });
   }
-  const demo = demoOrder.flatMap(([number, step]) => {
-    const person = accounts.find(a => a.employeeNumber === number);
-    return person ? [`${person.name}(${step})`] : [];
-  });
+  const demo = demoOrder.flatMap(number => accounts.find(a => a.employeeNumber === number)?.name ?? []);
   return <><header className="mast"><strong>주간업무 계획</strong></header>
     <main className="entry">
       <section><h1>로그인</h1><p>이름과 사번으로 로그인합니다.</p>
@@ -42,7 +39,7 @@ export function SignIn({ accounts, units, onSignIn }: {
         </form>
       </section>
       <section aria-label="사용자 목록"><h2>사용자 선택</h2><p>이름을 선택하면 그 사용자로 로그인합니다.</p>
-        {demo.length > 0 && <p className="recommend-note"><span className="recommend">추천</span> 표시는 시연에 권하는 사용자입니다. {demo.join(" → ")} 순서로 로그인하면 작성부터 게시까지 볼 수 있습니다.</p>}
+        {demo.length > 0 && <p className="recommend-note"><span className="recommend">추천</span> 시연용 추천 사용자<br />{demo.join(" → ")} 순서로 로그인하세요.</p>}
         {units.filter(o => accounts.some(a => a.organisationId === o.id)).map(o => <section className="account-group" key={o.id}>
           <h3>{o.name}</h3><div className="account-list">{accounts.filter(a => a.organisationId === o.id).map(a =>
             <button key={a.id} disabled={busy} onClick={() => void enter({name:a.name,employeeNumber:a.employeeNumber})}>
