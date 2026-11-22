@@ -2,10 +2,13 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { plainText, sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
 import { formLayout } from "./form-layout" with {type:"macro"};
 import { formRuns } from "../shared/form-runs";
-import { tableCellStyle } from "../shared/table-style";
+import { tableCellStyle, tableMargins, tableRows } from "../shared/table-style";
 
 const layout = await formLayout();
-export const tableGeometry=(id:string,fallback:string)=>({width:(layout.byItem[id]??layout.byItem[fallback])[2],height:layout.rowHeight});
+export const tableStyles=layout.tableStyles;
+export const tableGeometry=(id:string,fallback:string)=>({
+  width:(layout.byItem[id]??layout.byItem[fallback])[2],height:layout.rowHeight,
+  bodyWidth:(layout.byItem[id]??layout.byItem[fallback])[2]+tableStyles.margin.left+tableStyles.margin.right});
 const px = (units: number) => units/75;
 export function Runs({line}:{line:RichText}) {
   return <>{line.map((s,i) => <span key={i} data-color={s.color}
@@ -30,6 +33,18 @@ export function Nested({table}:{table:WorkTable}) {
         </td>;
       })}</tr>)}</tbody></table>;
 }
+export function TableRows({tables}:{tables:WorkTable[]}) {
+  return <div className="subtables">{tableRows(tables,tableStyles).map(row=>
+    <div className="table-row" key={row[0].id} style={{
+      paddingLeft:row.length>1?px(tableStyles.inline.leading):0,gap:row.length>1?px(tableStyles.inline.gap):0}}>
+      {row.map(table=>{
+        const margin=tableMargins(table,tableStyles);
+        return <div className="table-slot" key={table.id} style={{marginLeft:px(margin.left),marginRight:px(margin.right)}}>
+          <Nested table={table}/>
+        </div>;
+      })}
+    </div>)}</div>;
+}
 function rows(groups: (WorkItem|undefined)[][], ongoing=false, options?:{history?:(id:string)=>void;number?:number}) {
   return groups.map((pair,i)=><Fragment key={pair.find(Boolean)?.id ?? i}>
     <tr>{pair.map((item,j)=><td className="doc-body" data-item={item?.id} key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[0] ?? (ongoing ? 5900 : 8900))}}>
@@ -40,7 +55,7 @@ function rows(groups: (WorkItem|undefined)[][], ongoing=false, options?:{history
       </button>:<Title item={item} number={options?.number??i+1}/>}
         {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
         {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
-        {!!item.tables.length && <div className="subtables">{item.tables.map(t=><Nested key={t.id} table={t}/>)}</div>}
+        {!!item.tables.length && <TableRows tables={item.tables}/>}
       </>}</td>)}</tr>
     <tr>{pair.map((item,j)=><td className="doc-assignee" key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[1] ?? 2100)}}>
       {item && <><b>➢ (업무담당자)</b> {item.assignee}</>}</td>)}</tr>

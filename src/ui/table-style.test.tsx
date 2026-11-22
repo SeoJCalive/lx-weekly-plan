@@ -7,7 +7,7 @@ import { templateTableStyles } from "../server/table-style";
 import { paragraphs, readTemplate, tableCells } from "../server/template";
 import { generateHwpx } from "../server/hwpx";
 import { children, descendants, parseXml } from "../server/xml";
-import { Nested } from "./Preview";
+import { Nested, TableRows } from "./Preview";
 import { newTable, resize } from "./table";
 
 test("seed, new and expanded table cell styles agree in the shared rule, preview and output", async()=>{
@@ -33,4 +33,29 @@ test("seed, new and expanded table cell styles agree in the shared rule, preview
       expect(screenCells[i].attributes.style).toContain(`font-weight:${expected.bold?700:400}`);
     }
   }
+});
+
+test.each([
+  ["header", "#D9D9D9"],
+  ["gray", "#F2F2F2"],
+] as const)("preview shows the chosen %s fill on a body cell", (background,color)=>{
+  const table=newTable(2,2,24000,1282);
+  table.cells[2].background=background;
+  const preview=parseXml(renderToStaticMarkup(createElement(Nested,{table})));
+  const cells=descendants(preview,"td");
+  expect(cells[2].attributes.style).toContain(`background:${color}`);
+  expect(cells[3].attributes.style).toContain("background:#FFFFFF");
+});
+
+test("preview preserves legacy form rows and starts a new row when beside is explicitly off",()=>{
+  const original=structuredClone(seed.departments[2].items.ongoing[0].tables);
+  delete original[1].beside;
+  const standalone=newTable(2,2,12000,1282);
+  const rowCounts=(tables:typeof original)=>descendants(
+    parseXml(renderToStaticMarkup(createElement(TableRows,{tables}))),"div")
+    .filter(n=>n.attributes.class==="table-row").map(n=>descendants(n,"table").length);
+  expect(rowCounts([...original,standalone])).toEqual([2,1]);
+  expect(rowCounts([original[0],{...original[1],beside:false},standalone])).toEqual([1,1,1]);
+  expect(rowCounts([standalone,{...standalone,id:"second",beside:true},
+    {...standalone,id:"third",beside:true}])).toEqual([3]);
 });

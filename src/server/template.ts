@@ -115,7 +115,9 @@ export function readTemplate(bytes: Uint8Array): Template {
       title: withoutNumber(rich(ps[0], charProperties)),
       content: lines.filter((p) => !/^\s*\*/.test(paragraphText(p))).map((p) => rich(p, charProperties)),
       notes: lines.filter((p) => /^\s*\*/.test(paragraphText(p))).map((p) => rich(p, charProperties)),
-      tables: descendants(body, "hp:tbl").map(tableData),
+      tables: ps.flatMap((p) => descendants(p, "hp:tbl").map((table, index) => ({
+        ...tableData(table), ...(index > 0 ? { beside: true } : {}),
+      }))),
       assignee: paragraphs(assignee).map(paragraphText).join("\n").replace(/^.*?\(업무담당자\)\s*/, ""),
     };
     items.set(data.id, { body, assignee, table, data });

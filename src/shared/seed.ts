@@ -864,6 +864,7 @@ export const seed: WeeklyPlan = {
               },
               {
                 "id": "1239168026",
+                "beside": true,
                 "rows": 3,
                 "columns": 8,
                 "columnWidths": [
@@ -1347,6 +1348,7 @@ export const seed: WeeklyPlan = {
               },
               {
                 "id": "1246060262",
+                "beside": true,
                 "rows": 3,
                 "columns": 8,
                 "columnWidths": [
@@ -1829,6 +1831,7 @@ export const seed: WeeklyPlan = {
               },
               {
                 "id": "1246060270",
+                "beside": true,
                 "rows": 3,
                 "columns": 8,
                 "columnWidths": [

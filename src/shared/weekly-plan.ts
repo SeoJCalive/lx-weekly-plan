@@ -6,6 +6,7 @@ export interface TextSpan {
 }
 export type RichText = TextSpan[];
 export type Alignment = "left" | "center" | "right";
+export type CellBackground = "header" | "gray";
 export interface CellAddress {
   row: number;
   column: number;
@@ -23,9 +24,12 @@ export interface TableCell extends CellAddress {
   alignment: Alignment;
   paragraphs: RichText[];
   formula?: SumFormula;
+  background?: CellBackground;
 }
 export interface WorkTable {
   id: string;
+  /** Omitted values retain the form's original paragraph grouping. */
+  beside?: boolean;
   rows: number;
   columns: number;
   /** HWPUNIT (1/7200 inch), retained from the form. */

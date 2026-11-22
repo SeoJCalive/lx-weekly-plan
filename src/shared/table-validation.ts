@@ -1,13 +1,25 @@
 import type { WorkTable } from "./weekly-plan";
+import { tableRows, tableRowWidth, type TableStyles } from "./table-style";
+
+export const tableWidthError = "앞 표와 합친 폭이 본문보다 넓어 옆에 붙일 수 없습니다.";
+
+export function validateTableLayout(tables: WorkTable[], width: number, styles: TableStyles): void {
+  for (const row of tableRows(tables, styles))
+    if (row.length > 1 && tableRowWidth(row, styles) > width) throw Error(tableWidthError);
+}
 
 /** Structural contract shared by the save endpoint and the Hancom exporter. */
 export function validateTable(table:WorkTable):void {
+  if (table.beside !== undefined && typeof table.beside !== "boolean")
+    throw Error("표의 옆 배치 값이 올바르지 않습니다.");
   if(!Number.isInteger(table.rows) || !Number.isInteger(table.columns) ||
     table.rows<1 || table.columns<1 || table.columnWidths.length!==table.columns || table.rowHeights.length!==table.rows ||
     table.columnWidths.some(w=>!Number.isFinite(w) || w<=0) || table.rowHeights.some(h=>!Number.isFinite(h) || h<0))
     throw Error("Invalid table dimensions: 행·열 개수와 크기를 확인하세요.");
   const occupied=new Set<string>();
   for(const c of table.cells) {
+    if(c.background !== undefined && c.background !== "header" && c.background !== "gray")
+      throw Error("셀 색은 머리 색과 회색만 사용할 수 있습니다.");
     if(![c.row,c.column,c.rowSpan,c.colSpan].every(Number.isInteger) || c.row<0 || c.column<0 ||
       c.rowSpan<1 || c.colSpan<1 || c.row+c.rowSpan>table.rows || c.column+c.colSpan>table.columns)
       throw Error("Table cell outside table bounds: 셀이 표 밖으로 나갑니다.");

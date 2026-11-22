@@ -7,6 +7,9 @@ import { createReview } from "./review";
 import { createPublishing } from "./publishing";
 import { createRecords, itemHistory, sectionHistory } from "./records";
 import { ApiFailure, object, saveInput, text } from "./validation";
+import { readTemplate } from "./template";
+import { bodyContentWidth, templateTableStyles } from "./table-style";
+import { validateTableLayout } from "../shared/table-validation";
 
 export const lockIdleMs = 90_000;
 interface ItemRow {
@@ -34,6 +37,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
 }) {
   const review = createReview(db, now);
   const publishing = createPublishing(db, templateBytes, now);
+  const template = readTemplate(templateBytes), tableStyles = templateTableStyles(template);
   function currentPerson(request: Request): Person | null {
     const token = /(?:^|;\s*)lx_session=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
     if (!token) return null;
@@ -309,6 +313,13 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           db.transaction(() => {
             if (!unlocked(id, person)) throw new ApiFailure(409, "편집 잠금을 먼저 확보하세요.", { code: "LOCK_REQUIRED" });
             const previous: WorkItem = JSON.parse(row.content_json);
+            const department = template.departments.find(department => department.data.id === row.departmentId) ?? template.departments[0];
+            const source = template.items.get(previous.templateItemId ?? previous.id) ??
+              template.items.get(department.data.items[row.category][0].id)!;
+            try { validateTableLayout(input.tables, bodyContentWidth(source), tableStyles); } catch (error) {
+              if (error instanceof Error) throw new ApiFailure(400, error.message);
+              throw error;
+            }
             const assigneeMode = input.assignee === undefined ? row.assigneeMode :
               input.assignee === null ? "automatic" : "manual";
             const item: WorkItem = {

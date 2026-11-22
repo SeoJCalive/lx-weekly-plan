@@ -42,9 +42,13 @@ function table(value: unknown): value is WorkTable {
       if (f.type !== "SUM" || !object(f.from) || !object(f.to)) return false;
     }
   }
-  try { validateTable(value as WorkTable); } catch(e) { throw new ApiFailure(400,(e as Error).message); }
+  try { validateTable(value as WorkTable); } catch(e) {
+    if (e instanceof Error) throw new ApiFailure(400,e.message);
+    throw e;
+  }
   return true;
 }
+
 
 export function saveInput(value: unknown): SaveItemRequest {
   const body = object(value);

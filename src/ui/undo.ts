@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-export type Caret = {cell?:string;start:number;end:number};
+export type Caret = {cell?:string;endCell?:string;start:number;end:number};
 export type Step<T> = {value:T;caret:Caret};
 export type Typing = {time:number;caret:Caret;newWord:boolean};
 export type Undo<T> = {past:Step<T>[];future:Step<T>[];typing?:Typing};

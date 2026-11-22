@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { seed } from "../shared/seed";
 import { validateTable } from "../shared/table-validation";
-import { merge, newTable, rectangle, resize, selectedRange, split, sumSelection } from "./table";
+import { merge, newTable, paint, rectangle, resize, selectedRange, split, sumSelection } from "./table";
 import { tableCellStyle } from "../shared/table-style";
 import { templateTableStyles } from "../server/table-style";
 import { readTemplate } from "../server/template";
@@ -59,4 +59,27 @@ test("new tables shade only their header and added rows and columns inherit thei
   expect(next.cells.every(c=>tableCellStyle(next,c,styles).background==="#D9D9D9")).toBe(true);
   const removed=resize(table,"row",0);
   expect(removed.cells.every(c=>tableCellStyle(removed,c,styles).background==="#FFFFFF")).toBe(true);
+});
+
+test("painting changes only the selected cells and clearing restores their form backgrounds",()=>{
+  const table=newTable(3,3,24000,1282),range=rectangle("A2:B2",table);
+  const painted=paint(table,range,"gray");
+  expect(painted.cells.map(c=>c.background)).toEqual([
+    undefined,undefined,undefined,"gray","gray",undefined,undefined,undefined,undefined,
+  ]);
+  expect(paint(painted,range)).toEqual(table);
+  expect(table.cells.every(c=>c.background===undefined)).toBe(true);
+});
+
+test("merge, split and resizing retain painted cells while new cells inherit only the form style",()=>{
+  const table=newTable(3,3,24000,1282),range=rectangle("A2:B2",table);
+  const painted=paint(table,range,"gray"),merged=merge(painted,range);
+  expect(merged.cells.find(c=>c.row===1 && c.column===0)?.background).toBe("gray");
+  const unmerged=split(merged,merged.cells.find(c=>c.row===1 && c.column===0)!);
+  expect(unmerged.cells.filter(c=>c.row===1 && c.column<2).map(c=>c.background)).toEqual(["gray","gray"]);
+  const grown=resize(resize(painted,"row",null),"column",null);
+  expect(grown.cells.filter(c=>c.row===1 && c.column<2).map(c=>c.background)).toEqual(["gray","gray"]);
+  expect(grown.cells.filter(c=>c.row===3 || c.column===3).every(c=>c.background===undefined)).toBe(true);
+  const shifted=resize(resize(painted,"row",0),"column",2);
+  expect(shifted.cells.filter(c=>c.row===0).map(c=>c.background)).toEqual(["gray","gray"]);
 });

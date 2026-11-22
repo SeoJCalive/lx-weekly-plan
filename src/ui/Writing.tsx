@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DepartmentView, ItemView, Organisation, Person, WeekView } from "../shared/api";
 import { categories, plainText, type WorkCategory } from "../shared/weekly-plan";
 import { api } from "./api";
-import { Preview, tableGeometry } from "./Preview";
+import { Preview, tableGeometry, tableStyles } from "./Preview";
+import { validateTableLayout } from "../shared/table-validation";
 import { marked, sameLine } from "./text";
 import { EmphasisField } from "./EmphasisField";
 import { TableEditor } from "./TableEditor";
@@ -233,6 +234,9 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
             change={notes=>setDraft({...draft,notes})}/>
           {editable ? <fieldset className="table-field" disabled={busy}><legend>표</legend>
             {draft.tables.map((table,i)=><TableEditor key={table.id} table={table} index={i+1}
+              styles={tableStyles} bodyWidth={tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth}
+              validate={next=>validateTableLayout(draft.tables.map(t=>t===table?next:t),
+                tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`).bodyWidth,tableStyles)}
               change={next=>setDraft({...draft,tables:draft.tables.map(t=>t===table?next:t)})}
               remove={()=>setDraft({...draft,tables:draft.tables.filter(t=>t!==table)})}/>)}
             <button type="button" onClick={()=>{

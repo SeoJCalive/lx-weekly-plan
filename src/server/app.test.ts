@@ -286,6 +286,48 @@ describe("editing and interim saves", () => {
     tables[0].cells[0].colSpan = 3;
     expect((await call("PUT", `/api/items/${item.id}`, first, { ...content, tables })).response.status).toBe(400);
   });
+  test("grouped overflow is rejected against a new item's narrow category width", async()=>{
+    const item=await prepare(),tables=structuredClone(seed.departments[2].items.ongoing[0].tables);
+    const result=await call<ApiError>("PUT",`/api/items/${item.id}`,first,{...content,tables});
+    expect(result.response.status).toBe(400);
+    expect(result.data.error).toBe("앞 표와 합친 폭이 본문보다 넓어 옆에 붙일 수 없습니다.");
+    expect(readPlan(db).departments[0].items.thisWeek.at(-1)!.tables).toEqual([]);
+  });
+  test("a fitting colored group is saved and returned with its beside flags",async()=>{
+    const item=await prepare(),tables=structuredClone(seed.departments[2].items.ongoing[0].tables);
+    for(const table of tables)table.columnWidths=table.columnWidths.map(()=>1000);
+    tables[0].cells[0].background="gray";
+    tables[1].cells[0].background="header";
+    const result=await call("PUT",`/api/items/${item.id}`,first,{...content,tables});
+    expect(result.response.status).toBe(200);
+    expect(result.data.tables).toEqual(tables);
+  });
+  test.each(["#00FF00","",null])("cell background %j is rejected at the save boundary",async background=>{
+    const item=await prepare(),tables=structuredClone(seed.departments[1].items.ongoing[2].tables);
+    const result=await call<ApiError>("PUT",`/api/items/${item.id}`,first,{
+      ...content,tables:[{...tables[0],cells:tables[0].cells.map((cell,index)=>index===0?{...cell,background}:cell)}],
+    });
+    expect(result.response.status).toBe(400);
+    expect(result.data.error).toBe("셀 색은 머리 색과 회색만 사용할 수 있습니다.");
+  });
+  test("a copied item is validated against its previous template reference instead of the category fallback",async()=>{
+    const item=await prepare(),previous={...item,templateItemId:"item-166"};
+    db.query("UPDATE items SET content_json=? WHERE id=?").run(JSON.stringify(previous),item.id);
+    const tables=structuredClone(seed.departments[2].items.ongoing[0].tables);
+    const result=await call("PUT",`/api/items/${item.id}`,first,{...content,tables});
+    expect(result.response.status).toBe(200);
+    expect(result.data.tables).toEqual(tables);
+    expect(result.data.templateItemId).toBe("item-166");
+  });
+  test("grouped width includes the source cell's effective margins and inline spaces",async()=>{
+    const item=await prepare(),previous={...item,templateItemId:"item-166"};
+    db.query("UPDATE items SET content_json=? WHERE id=?").run(JSON.stringify(previous),item.id);
+    const tables=structuredClone(seed.departments[2].items.ongoing[0].tables);
+    tables[1].columnWidths[0]+=535;
+    const result=await call<ApiError>("PUT",`/api/items/${item.id}`,first,{...content,tables});
+    expect(result.response.status).toBe(400);
+    expect(result.data.error).toBe("앞 표와 합친 폭이 본문보다 넓어 옆에 붙일 수 없습니다.");
+  });
   test("client-supplied status does not perform a review transition", async () => {
     const item = await prepare();
     expect((await call("PUT", `/api/items/${item.id}`, first, { ...content, status: "승인" })).data.status).toBe("작성 중");

@@ -1,4 +1,4 @@
-import { plainText, type CellAddress, type SumFormula, type TableCell, type WorkTable } from "../shared/weekly-plan";
+import { plainText, type CellAddress, type CellBackground, type SumFormula, type TableCell, type WorkTable } from "../shared/weekly-plan";
 import { cellOrigin } from "../shared/table-style";
 
 export function cellName({row,column}:CellAddress) {
@@ -60,6 +60,13 @@ export function resize(table:WorkTable,axis:"row"|"column",remove:number|null) {
 export function intersects(c:TableCell,{from,to}:SumFormula) {
   return c.row<=to.row && c.row+c.rowSpan>from.row && c.column<=to.column && c.column+c.colSpan>from.column;
 }
+export function paint(table:WorkTable,range:SumFormula,background?:CellBackground):WorkTable {
+  return {...table,cells:table.cells.map(c=>{
+    if(!intersects(c,range))return c;
+    const {background:previous,...rest}=c;
+    return background ? {...rest,background} : rest;
+  })};
+}
 export function selectedRange(a:TableCell,b:TableCell):SumFormula {
   return {type:"SUM",from:{row:Math.min(a.row,b.row),column:Math.min(a.column,b.column)},
     to:{row:Math.max(a.row+a.rowSpan,b.row+b.rowSpan)-1,column:Math.max(a.column+a.colSpan,b.column+b.colSpan)-1}};
@@ -92,6 +99,6 @@ export function split(table:WorkTable,c:TableCell) {
   const cells=table.cells.filter(x=>x!==c);
   for(let r=c.row;r<c.row+c.rowSpan;r++)for(let col=c.column;col<c.column+c.colSpan;col++)
     cells.push(r===c.row && col===c.column?{...c,rowSpan:1,colSpan:1}:
-      {...blank(r,col),...(c.styleFrom?{styleFrom:c.styleFrom}:{})});
+      {...blank(r,col),...(c.styleFrom?{styleFrom:c.styleFrom}:{}),...(c.background?{background:c.background}:{})});
   return {...table,cells:cells.sort(order)};
 }

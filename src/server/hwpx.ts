@@ -1,8 +1,8 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
-import { validateTable } from "../shared/table-validation";
+import { validateTable, validateTableLayout } from "../shared/table-validation";
 import { formRuns } from "../shared/form-runs";
-import { cellOrigin, tableCellStyle } from "../shared/table-style";
-import { templateTableStyles } from "./table-style";
+import { besidePrevious, cellOrigin, tableCellStyle, tableRows } from "../shared/table-style";
+import { bodyContentWidth, bodyMargins, coloredFills, inlineParagraph, templateTableStyles } from "./table-style";
 import { sumValue, type RichText, type TableCell, type WeeklyPlan, type WorkItem, type WorkTable } from "../shared/weekly-plan";
 import { paragraphs, paragraphText, readTemplate, tableCells, type ItemTemplate } from "./template";
 import { child, children, clone, descendants, element, escapeXml, serialize, setAttribute, setText, textContent, type XmlNode } from "./xml";
@@ -19,6 +19,9 @@ const address = (cell: { row: number; column: number }): string => `${columnName
 export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8Array {
   const t = readTemplate(templateBytes);
   const tableStyles = templateTableStyles(t);
+  const coloredFill = coloredFills(t.header);
+  const layoutTables = (tables: WorkTable[]) =>
+    tables.map(table => ({...table,beside:besidePrevious(table,tableStyles)}));
   let nextId = Math.max(...descendants(t.section, "hp:p").map((p) => Number(p.attributes.id)),
     ...descendants(t.section, "hp:tbl").map((p) => Number(p.attributes.id))) + 1;
   const charCache = new Map<string, string>();
@@ -105,7 +108,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       widths[widths.length - 1] += available - widths.reduce((a, b) => a + b, 0);
       table = { ...table, columnWidths: widths };
     }
-    if (equal(table, baseline)) return clone(source);
+    if (equal({ ...table, beside: baseline?.beside }, baseline)) return clone(source);
     const result = clone(source);
     const originals = tableCells(source);
     const sourceCells = new Map(originals.map((c) => {
@@ -121,7 +124,7 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       const original = baseline ? sourceCells.get(key) ?? originals.find(c =>
         c.attributes.borderFillIDRef === style.borderFillId) ?? originals[0] : originals[0];
       const c = clone(original);
-      setAttribute(c, "borderFillIDRef", style.borderFillId);
+      setAttribute(c, "borderFillIDRef", cell.background ? coloredFill(style.borderFillId, style.background) : style.borderFillId);
       setAttribute(child(c, "hp:cellAddr"), "rowAddr", cell.row);
       setAttribute(child(c, "hp:cellAddr"), "colAddr", cell.column);
       setAttribute(child(c, "hp:cellSpan"), "rowSpan", cell.rowSpan);
@@ -175,7 +178,10 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     if (!baseline) freshIds(result);
     return result;
   }
-  function renderItem(item: WorkItem, source: ItemTemplate, number: number, isNew: boolean): [XmlNode, XmlNode] {
+  function renderItem(item: WorkItem, source: ItemTemplate, options: {
+    number: number; isNew: boolean; destination: Pick<ItemTemplate, "body" | "table">;
+  }): [XmlNode, XmlNode] {
+    const { number, isNew, destination } = options;
     const body = clone(source.body), assignee = clone(source.assignee);
     const old = source.data, sourcePs = paragraphs(source.body);
     let title: XmlNode;
@@ -202,34 +208,55 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         ? clone(templates[i]) : renderParagraph(templates[i] ?? templates[0] ?? standard, line, charId,!!templates[i] && !isNew)));
     }
     const tablePs = sourcePs.filter((p) => descendants(p, "hp:tbl").length);
-    const width=Number(child(body,"hp:cellSz").attributes.width);
-    for(let index=0; index<item.tables.length;) {
-      // Keep an intact original group in its own paragraph, even when another table was appended.
-      const group=tablePs.find(p=>descendants(p,"hp:tbl").every((tbl,j)=>tbl.attributes.id===item.tables[index+j]?.id));
+    const width=bodyContentWidth(destination);
+    validateTableLayout(item.tables,width,tableStyles);
+    for(const row of tableRows(item.tables, tableStyles)) {
+      const group=tablePs.find(p=>{
+        const tables=descendants(p,"hp:tbl");
+        return tables.length===row.length && tables.every((tbl,j)=>tbl.attributes.id===row[j].id);
+      });
       if(group) {
         const p=clone(group);
+        let index=0;
         for(const run of children(p,"hp:run"))run.children=run.children.map(c=>{
           if(typeof c==="string" || c.name!=="hp:tbl")return c;
-          const model=item.tables[index++];
+          const model=row[index++];
           return renderTable(model,c,old.tables.find(t=>t.id===model.id),width);
         });
         output.push(p);
       }else{
-        const model=item.tables[index++], baseline=old.tables.find(tbl=>tbl.id===model.id);
         const fallback=[...t.items.values()].find(i=>i.data.tables.length)!;
-        const prototype=paragraphs(fallback.body).find(p=>descendants(p,"hp:tbl").length)!;
-        const p=clone(prototype), sourceTable=baseline?t.tables.get(baseline.id)!:descendants(prototype,"hp:tbl")[0];
-        const nested=renderTable(model,sourceTable,baseline,width);
-        p.children=[element('<hp:run charPrIDRef="36"></hp:run>')];
-        child(p,"hp:run").children=[nested,element("<hp:t/>")];
+        const prototype=row.length>1?inlineParagraph(t):paragraphs(fallback.body).find(p=>descendants(p,"hp:tbl").length)!;
+        const p=clone(prototype), runs=children(prototype,"hp:run");
+        const nested=row.map(model=>{
+          const baseline=old.tables.find(tbl=>tbl.id===model.id);
+          const sourceTable=t.tables.get(model.id)??t.tables.get(fallback.data.tables[0].id)!;
+          const table=renderTable(model,sourceTable,baseline,width);
+          if(row.length>1)setAttribute(child(table,"hp:pos"),"treatAsChar","1");
+          return table;
+        });
+        if(row.length>1){
+          const first=clone(runs[0]); first.children=first.children.filter(c=>typeof c==="string"||c.name!=="hp:tbl");
+          first.children.push(nested[0]);
+          p.children=[first];
+          for(const table of nested.slice(1)){
+            p.children.push(clone(runs[1]));
+            const run=clone(runs[2]); run.children=[table]; p.children.push(run);
+          }
+          p.children.push(clone(runs[3]));
+        }else {
+          p.children=[element('<hp:run charPrIDRef="36"></hp:run>')];
+          child(p,"hp:run").children=[nested[0],element("<hp:t/>")];
+        }
+        freshIds(p);
         output.push(p);
       }
     }
     if (!descendants(sourcePs[sourcePs.length - 1], "hp:tbl").length)
       for (const table of descendants(output[output.length - 1], "hp:tbl"))
         setAttribute(child(table, "hp:outMargin"), "bottom", "0");
-    if (isNew || !equal([item.title, item.content, item.notes, item.tables],
-      [old.title, old.content, old.notes, old.tables])) {
+    if (isNew || !equal([item.title, item.content, item.notes, layoutTables(item.tables)],
+      [old.title, old.content, old.notes, layoutTables(old.tables)])) {
       // Only the tallest original cell's slack is padding; Hancom recreates row slack.
       const row = children(source.table, "hp:tr").find((r) => children(r, "hp:tc").includes(source.body))!;
       const padding = children(row, "hp:tc").map((cell) => {
@@ -254,6 +281,13 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       setAttribute(child(body, "hp:cellSz"), "height", "0");
       for (const p of output.flatMap((p) => [p, ...descendants(p, "hp:p")]))
         p.children = p.children.filter((c) => typeof c === "string" || c.name !== "hp:linesegarray");
+    }
+    const destinationMargin=bodyMargins(destination), currentMargin=bodyMargins({body,table:source.table});
+    if(["left","right"].some(side=>destinationMargin[side]!==currentMargin[side])){
+      const margin=child(body,"hp:cellMargin");
+      for(const side of ["top","bottom"])setAttribute(margin,side,currentMargin[side]);
+      for(const side of ["left","right"])setAttribute(margin,side,destinationMargin[side]);
+      setAttribute(body,"hasMargin","1");
     }
     child(body, "hp:subList").children = output;
     if (item.assignee !== old.assignee) {
@@ -306,7 +340,9 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
         if (item) {
           const known = t.items.get(item.templateItemId ?? item.id);
           const prototype = known ?? [...t.items.values()].find((i) => i.body === defaultBody)!;
-          [body, assignee] = renderItem(item, prototype, index + 1, !known);
+          const destination = known?.table === source && Number(child(known.body,"hp:cellAddr").attributes.colAddr) === col
+            ? known : {body:defaultBody,table:source};
+          [body, assignee] = renderItem(item, prototype, {number:index + 1,isNew:!known,destination});
         } else {
           body = clone(defaultBody); assignee = clone(defaultAssignee);
           setAttribute(child(body, "hp:cellSz"), "height", "0");
@@ -357,10 +393,14 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     const layoutItems = Object.fromEntries(Object.entries(department.items).map(([category, items]) => [
       category, items.map((item, index) => {
         const old = source.data.items[category as keyof typeof department.items][index];
-        return old && item.assignee.length === old.assignee.length ? { ...item, assignee: old.assignee } : item;
+        return { ...item, tables:layoutTables(item.tables),
+          ...(old && item.assignee.length === old.assignee.length ? {assignee:old.assignee} : {}) };
       }),
     ]));
-    layoutChanged ||= !equal(layoutItems, source.data.items);
+    const originalLayoutItems=Object.fromEntries(Object.entries(source.data.items).map(([category,items])=>[
+      category,items.map(item=>({...item,tables:layoutTables(item.tables)})),
+    ]));
+    layoutChanged ||= !equal(layoutItems, originalLayoutItems);
     const mainCells = tableCells(main);
     for (const [index, text] of [
       [0, `전주 실적${data.lastWeekPeriod}`], [1, `금주 계획${data.thisWeekPeriod}`],

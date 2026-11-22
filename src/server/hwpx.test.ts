@@ -3,8 +3,9 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { seed } from "../shared/seed";
 import { changedCases } from "../../scripts/export-cases";
 import { generateHwpx } from "./hwpx";
+import { bodyContentWidth, templateTableStyles } from "./table-style";
 import { paragraphText, paragraphs, readTemplate, tableCells } from "./template";
-import { child, children, descendants, element, parseXml, serialize } from "./xml";
+import { child, children, clone, descendants, element, parseXml, serialize, setAttribute } from "./xml";
 
 const template = new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer());
 const generate = (data = seed) => generateHwpx(data, template);
@@ -157,6 +158,122 @@ describe("weekly plan hwpx", () => {
     it.tables.push({...structuredClone(it.tables[0]),id:"added"});
     const xml=readTemplate(generate(data));
     expect(paragraphs(xml.items.get(it.id)!.body).map(p=>descendants(p,"hp:tbl").length).filter(Boolean)).toEqual([2,1]);
+  });
+  test.each([2,3])("new groups of %i tables use the form's inline runs and unique IDs", count=>{
+    const data=structuredClone(seed),item=data.departments[1].items.ongoing[2];
+    item.tables=Array.from({length:count},(_,index)=>({
+      ...structuredClone(item.tables[0]),id:`inline-${index}`,beside:index>0,
+      columnWidths:item.tables[0].columnWidths.map(()=>1000),
+    }));
+    const output=readTemplate(generate(data)),body=output.items.get(item.id)!.body;
+    const ps=paragraphs(body).filter(p=>descendants(p,"hp:tbl").length);
+    expect(ps.map(p=>descendants(p,"hp:tbl").length)).toEqual([count]);
+    const runs=children(ps[0],"hp:run");
+    expect(runs.map(r=>r.attributes.charPrIDRef)).toEqual(count===2?["60","37","29","37"]:["60","37","29","37","29","37"]);
+    expect(runs.filter(r=>paragraphText(element(`<hp:p>${serialize(r)}</hp:p>`))===" ")).toHaveLength(count);
+    expect(descendants(ps[0],"hp:tbl").map(table=>child(table,"hp:pos").attributes.treatAsChar)).toEqual(Array(count).fill("1"));
+    for(const name of ["hp:p","hp:tbl"]){
+      const ids=descendants(output.section,name).map(node=>node.attributes.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+  test("legacy omitted beside flags retain the original section XML and layout defaults",()=>{
+    const data=structuredClone(seed);
+    for(const department of data.departments)for(const items of Object.values(department.items))
+      for(const item of items)for(const table of item.tables)delete table.beside;
+    expect(strFromU8(unzipSync(generate(data))["Contents/section0.xml"]))
+      .toBe(strFromU8(unzipSync(generate())["Contents/section0.xml"]));
+    const original=readTemplate(template),styles=templateTableStyles(original);
+    expect(styles.inline).toEqual({leading:450,gap:550});
+    expect(styles.margin).toEqual({left:708,right:566});
+    for(const id of ["item-166","item-228","item-290"]){
+      const item=original.items.get(id)!;
+      expect(item.data.tables.map(table=>table.beside)).toEqual([undefined,true]);
+      expect(item.data.tables.map(table=>styles.tables[table.id].beside)).toEqual([false,true]);
+      expect(bodyContentWidth(item)).toBe(51502);
+    }
+  });
+  test("turning beside off splits the original pair without duplicate paragraph or table IDs",()=>{
+    const data=structuredClone(seed),item=data.departments[2].items.ongoing[0];
+    item.tables[1].beside=false;
+    const output=readTemplate(generate(data));
+    expect(paragraphs(output.items.get(item.id)!.body).map(p=>descendants(p,"hp:tbl").length).filter(Boolean)).toEqual([1,1]);
+    for(const name of ["hp:p","hp:tbl"]){
+      const ids=descendants(output.section,name).map(node=>node.attributes.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+  test("a third table attached to an original pair joins the entire requested row",()=>{
+    const data=structuredClone(seed),item=data.departments[2].items.ongoing[0];
+    item.tables.push({...structuredClone(item.tables[0]),id:"third-inline",beside:true});
+    for(const table of item.tables)table.columnWidths=table.columnWidths.map(()=>1000);
+    const output=readTemplate(generate(data));
+    expect(paragraphs(output.items.get(item.id)!.body).map(p=>descendants(p,"hp:tbl").length).filter(Boolean)).toEqual([3]);
+  });
+  test("export rejects grouped overflow using the moved item's actual destination width",()=>{
+    const data=structuredClone(seed),item=structuredClone(data.departments[2].items.ongoing[0]);
+    item.id="copied-pair";item.templateItemId="item-166";
+    data.departments[0].items.thisWeek.push(item);
+    expect(()=>generate(data)).toThrow("앞 표와 합친 폭");
+  });
+  test("export fitting uses the destination cell margins for a moved single table",()=>{
+    const data=structuredClone(seed),item=structuredClone(data.departments[1].items.ongoing[2]);
+    item.id="copied-single";item.templateItemId="item-115";
+    data.departments[0].items.thisWeek.push(item);
+    const output=section(generate(data));
+    const main=descendants(output,"hp:tbl").find(table=>table.attributes.id==="1178668902")!;
+    const body=child(children(main,"hp:tr").at(-2)!,"hp:tc");
+    const destination=children(children(main,"hp:tr").at(-2)!,"hp:tc")[1];
+    expect(child(destination,"hp:cellMargin").attributes).toMatchObject({left:"138",right:"138"});
+    expect(Number(child(descendants(destination,"hp:tbl")[0],"hp:sz").attributes.width)).toBe(24341);
+    expect(descendants(body,"hp:tbl")).toHaveLength(0);
+  });
+  test("colored cells share fills by original border and color while preserving all other markup",()=>{
+    const data=structuredClone(seed),item=data.departments[2].items.ongoing[0],table=item.tables[0];
+    const grayIndexes=[2,4].map(column=>table.cells.findIndex(cell=>cell.row===1 && cell.column===column));
+    for(const index of grayIndexes)table.cells[index].background="gray";
+    const bodyCell=table.cells.find(cell=>cell.row===2 && cell.column===0)!;
+    bodyCell.background="header";
+    const original=readTemplate(template),output=readTemplate(generate(data));
+    const cells=tableCells(descendants(output.items.get(item.id)!.body,"hp:tbl")[0]);
+    const originalCells=tableCells(original.tables.get(table.id)!);
+    const originalFills=descendants(original.header,"hh:borderFill"),fills=descendants(output.header,"hh:borderFill");
+    expect(cells[grayIndexes[0]].attributes.borderFillIDRef).toBe(cells[grayIndexes[1]].attributes.borderFillIDRef);
+    expect(fills).toHaveLength(originalFills.length+2);
+    expect(descendants(output.header,"hh:borderFills")[0].attributes.itemCnt).toBe(String(fills.length));
+    for(const [index,color] of [[grayIndexes[0],"#F2F2F2"],[table.cells.indexOf(bodyCell),"#D9D9D9"]] as const){
+      const base=originalFills.find(fill=>fill.attributes.id===originalCells[index].attributes.borderFillIDRef)!;
+      const actual=fills.find(fill=>fill.attributes.id===cells[index].attributes.borderFillIDRef)!;
+      expect(actual.attributes.id).not.toBe(base.attributes.id);
+      expect(descendants(actual,"hc:winBrush")[0].attributes.faceColor).toBe(color);
+      const expected=clone(base);
+      setAttribute(expected,"id",actual.attributes.id);
+      const brush=descendants(expected,"hc:winBrush")[0];
+      if(brush){
+        setAttribute(brush,"faceColor",color);
+        expect(serialize(actual)).toBe(serialize(expected));
+      }else{
+        const withoutFill=clone(actual);
+        withoutFill.children=withoutFill.children.filter(node=>typeof node==="string"||node.name!=="hc:fillBrush");
+        expect(serialize(withoutFill)).toBe(serialize(expected));
+      }
+    }
+    expect(cells[0].attributes.borderFillIDRef).toBe(originalCells[0].attributes.borderFillIDRef);
+  });
+  test.each(["missing-fill","missing-win"] as const)("coloring creates a missing brush (%s) while retaining the borders",kind=>{
+    const fixture=readTemplate(template),item=fixture.data.departments[2].items.ongoing[0],table=item.tables[0];
+    const baseId=tableCells(fixture.tables.get(table.id)!)[0].attributes.borderFillIDRef;
+    const fill=descendants(fixture.header,"hh:borderFill").find(fill=>fill.attributes.id===baseId)!;
+    if(kind==="missing-fill")fill.children=fill.children.filter(node=>typeof node==="string"||node.name!=="hc:fillBrush");
+    else child(fill,"hc:fillBrush").children=[];
+    fixture.entries["Contents/header.xml"]=strToU8(serialize(fixture.header));
+    table.cells[0].background="gray";
+    const output=readTemplate(generateHwpx(fixture.data,zipSync(fixture.entries)));
+    const outputCell=tableCells(descendants(output.items.get(item.id)!.body,"hp:tbl")[0])[0];
+    const colored=descendants(output.header,"hh:borderFill").find(fill=>fill.attributes.id===outputCell.attributes.borderFillIDRef)!;
+    expect(descendants(colored,"hc:winBrush")[0].attributes.faceColor).toBe("#F2F2F2");
+    expect(children(colored).filter(node=>node.name!=="hc:fillBrush").map(serialize))
+      .toEqual(children(fill).filter(node=>node.name!=="hc:fillBrush").map(serialize));
   });
   test("changed items carry original centered slack as margins while Hancom sizes the content", () => {
     const original = readTemplate(template);
