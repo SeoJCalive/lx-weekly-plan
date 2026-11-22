@@ -55,13 +55,13 @@ export function Publications({accounts,postId}:{accounts:Person[];postId?:number
     return ()=>{stopped=true;};
   },[id,retry]);
   return <main className="page"><div className="page-heading"><h1>게시판</h1></div>
-    {postId && <p role="status" className="notice">{posts?.find(p=>p.id===postId)?.title} 배포를 완료했습니다.</p>}
     {listError && <p role="alert">{listError}</p>}
     {!posts?<p role="status">배포본을 불러오는 중…</p>:!posts.length?<div className="empty task-list"><h2>아직 배포된 문서가 없습니다.</h2><p>최종 승인된 계획을 배포하면 여기에 게시됩니다.</p></div>:
     <div className="board publications"><aside aria-label="배포본 목록"><h2>배포본 목록</h2>
       {posts.map(p=>{
         const person=accounts.find(a=>a.id===p.publishedBy);
         return <button key={p.id} className="post-row" aria-pressed={p.id===id} onClick={()=>setId(p.id)}><b>{p.title}</b>
+          {p.id===postId && <strong role="status">배포 완료</strong>}
           <span><time dateTime={new Date(p.publishedAt).toISOString()}>{new Date(p.publishedAt).toLocaleString("ko-KR",{dateStyle:"short",timeStyle:"short"})}</time> · {person?`${person.name} ${person.title}`:"배포자 미확인"}</span></button>;
       })}</aside>
       <section aria-label="선택한 배포본" className="board-detail">{error?<p role="alert">{error} <button onClick={()=>setRetry(r=>r+1)}>다시 시도</button></p>:
