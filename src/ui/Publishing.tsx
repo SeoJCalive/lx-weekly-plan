@@ -27,9 +27,9 @@ export function Release({week,board,stageId,posts,go}:{week:WeekSummary;board:Da
   return <section className="release" aria-label="주간업무 계획 배포"><div>
     <h2>{ready?"배포할 문서":"최종 승인 대기"}</h2>
     <p>{ready?title:`${missing.map(d=>d.name).join(", ")} · 최종 승인 후 배포할 수 있습니다.`}</p>
-  </div><div className="actions">
+  </div><div className="actions release-actions">
     {ready && <button className="primary" disabled={busy} onClick={()=>void act(true)}>게시판에 배포</button>}
-    {week.nextWeekId===null && <button disabled={busy} onClick={()=>void act(false)}>다음 주차 열기</button>}
+    {week.nextWeekId===null && <button className="quiet-action" disabled={busy} onClick={()=>void act(false)}>다음 주차 열기</button>}
   </div>{error && <p role="alert">{error}</p>}</section>;
 }
 

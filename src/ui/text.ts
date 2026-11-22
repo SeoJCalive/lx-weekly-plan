@@ -1,7 +1,39 @@
 import { plainText, type RichText, type TextColor } from "../shared/weekly-plan";
 
-export type Emphasis = "bold" | TextColor | "clear";
+export type Emphasis = "bold" | TextColor;
+export function selectionMarks(lines:RichText[],start:number,end:number):Emphasis[] {
+  let offset=0, seen=false;
+  const covered:Record<Emphasis,boolean>={bold:true,blue:true,red:true};
+  for(const line of lines){
+    for(const span of line){
+      const next=offset+span.text.length;
+      if(Math.max(start,offset)<Math.min(end,next)){
+        seen=true;
+        covered.bold&&=!!span.bold;covered.blue&&=span.color==="blue";covered.red&&=span.color==="red";
+      }
+      offset=next;
+    }
+    offset++;
+  }
+  return (["bold","blue","red"] as const).filter(mark=>seen && covered[mark]);
+}
+/** Splitting a run while editing does not itself change the saved text or its formatting. */
+export function sameLine(a:RichText,b:RichText,defaultBold=false):boolean {
+  if(a===b)return true;
+  function joined(line:RichText){
+    const runs:RichText=[];
+    for(const span of line){
+      if(!span.text)continue;
+      const last=runs.at(-1), bold=span.bold??defaultBold;
+      if(last && last.bold===bold && last.color===span.color)last.text+=span.text;
+      else runs.push({text:span.text,bold,color:span.color});
+    }
+    return runs;
+  }
+  return JSON.stringify(joined(a))===JSON.stringify(joined(b));
+}
 export function emphasize(lines: RichText[], start: number, end: number, mark: Emphasis): RichText[] {
+  const remove=selectionMarks(lines,start,end).includes(mark);
   let offset=0;
   return lines.map(line=>{
     const result=line.flatMap(span=>{
@@ -10,7 +42,7 @@ export function emphasize(lines: RichText[], start: number, end: number, mark: E
       if (a>=b) return [span];
       const part=text.slice(a,b);
       return [...(a ? [{...span,text:text.slice(0,a)}] : []),
-        mark==="clear" ? {text:part,bold:false} : {...span,text:part,...(mark==="bold" ? {bold:true} : {color:mark})},
+        {...span,text:part,...(mark==="bold" ? {bold:!remove} : {color:remove?undefined:mark})},
         ...(b<text.length ? [{...span,text:text.slice(b)}] : [])];
     });
     offset++; // A textarea represents the paragraph boundary with one newline.

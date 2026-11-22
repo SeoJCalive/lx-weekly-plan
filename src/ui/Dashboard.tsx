@@ -3,7 +3,7 @@ import { itemStatuses, type DashboardView, type DepartmentView, type ItemChange,
 import { categories, plainText, type WorkItem } from "../shared/weekly-plan";
 import { api } from "./api";
 import { Nested, Preview, Runs } from "./Preview";
-import { Heading, names, type Place, Status } from "./Workflow";
+import { Heading, names, type Place, StageProgress, Status } from "./Workflow";
 import { ReviewCard } from "./ReviewCard";
 
 function Decision({path,actions,items,done,weekId}:{path:string;actions:readonly string[];items?:ItemView[];done:(text:string)=>void;weekId?:number}) {
@@ -77,7 +77,7 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
   function unitRow(id:string){
     const d=board.departments.find(u=>u.departmentId===id);
     return d && <button key={id} className="unit-row" aria-pressed={departmentId===id} onClick={()=>choose(id)}>
-      <span>{d.name}</span><Status value={d.status}/></button>;
+      <span>{d.name}</span><span className="section-status"><StageProgress dept={d} board={board} units={units}/><Status value={d.status}/></span></button>;
   }
   return <main className="page"><Heading title="현황판" week={week} picker={picker}/>{release}
     <div className="board"><aside aria-label="조직별 현황"><h2>조직별 현황</h2>
@@ -85,7 +85,8 @@ export function Dashboard({board,week,units,person,place,refresh,picker,release,
         {o.departmentIds.map(unitRow)}</section>)}
       {board.departments.filter(d=>!board.offices.some(o=>o.departmentIds.includes(d.departmentId))).map(d=>unitRow(d.departmentId))}
     </aside>
-    {dept && source && <section className="board-detail"><div className="section-head"><h2>{dept.name}</h2><Status value={dept.status}/></div>
+    {dept && source && <section className="board-detail"><div className="section-head"><h2>{dept.name}</h2>
+      <span className="section-status"><StageProgress dept={dept} board={board} units={units}/><Status value={dept.status}/></span></div>
       {!!dept.reviews.length && <div className="review-trail">{dept.reviews.map(r=><span key={r.stageId}>{stageName(r.stageId)} 검토 <Status value={r.status}/></span>)}</div>}
       {board.stages.filter(s=>s.actions.includes("submit") && (s.organisationId===departmentId || dept.reviews.some(r=>r.stageId===s.id))).map(s=>
         <div className="submit-line" key={s.id}><span>소속 {s.reviewUnit==="item"?"항목":"처 섹션"} 모두 승인</span>

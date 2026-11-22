@@ -29,6 +29,10 @@
 .field-tools [data-mark=bold] {font-weight:700}
 .field-tools [data-mark=blue] {color:var(--doc-blue)}
 .field-tools [data-mark=red] {color:var(--doc-red)}
+.mark-tools [data-mark=bold] {--mark-fill:var(--ink)}
+.mark-tools [data-mark=blue] {--mark-fill:var(--doc-blue)}
+.mark-tools [data-mark=red] {--mark-fill:var(--returned)}
+.field-tools .mark-tools button[aria-pressed=true]:not(:disabled) {background:var(--mark-fill);border-color:var(--mark-fill);color:var(--paper)}
 .field-tools .mark-tools button:disabled {opacity:.55}
 .insert-tools {border-left:1px solid var(--line);padding-left:var(--s2)}
 .insert-tools button {min-width:var(--s6)}

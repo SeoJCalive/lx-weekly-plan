@@ -1,6 +1,6 @@
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { type RichText } from "../shared/weekly-plan";
-import { editLines, editText, emphasize, linesText, type Emphasis } from "./text";
+import { editLines, editText, emphasize, linesText, selectionMarks, type Emphasis } from "./text";
 
 export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;label:string;lines:RichText[];
   rows?:number;readOnly:boolean;change:(lines:RichText[])=>void}) {
@@ -8,6 +8,7 @@ export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;l
   const mirror=useRef<HTMLDivElement|null>(null);
   const visited=useRef(false),caret=useRef<number|null>(null);
   const [range,setRange]=useState([0,0]);
+  const pressed=selectionMarks(lines,range[0],range[1]);
   function sync() {
     const el=field.current, layer=mirror.current;
     if (!el || !layer)return;
@@ -18,9 +19,14 @@ export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;l
   useLayoutEffect(()=>{
     const el=field.current;
     if (!el)return;
+    const selection=()=>setRange(old=>{
+      const a=el.selectionStart??0,b=el.selectionEnd??0;
+      return old[0]===a && old[1]===b?old:[a,b];
+    });
+    el.addEventListener("selectionchange",selection);
     const observer=new ResizeObserver(sync);
     observer.observe(el);
-    return ()=>observer.disconnect();
+    return ()=>{observer.disconnect();el.removeEventListener("selectionchange",selection);};
   },[]);
   useLayoutEffect(()=>{
     sync();
@@ -55,8 +61,8 @@ export function EmphasisField({id,label,lines,rows,readOnly,change}:{id:string;l
   return <div className="emphasis-field"><label htmlFor={id}>{label}</label>
     {!readOnly && <div className="field-tools">
     <div className="mark-tools" role="group" aria-label={`${label} 선택 글자 강조`}>
-      {([["bold","굵게"],["blue","파랑"],["red","빨강"],["clear","강조 해제"]] as const).map(([mark,text])=>
-        <button type="button" key={mark} data-mark={mark} disabled={range[0]===range[1]} onMouseDown={e=>e.preventDefault()}
+      {([["bold","굵게"],["blue","파랑"],["red","빨강"]] as const).map(([mark,text])=>
+        <button type="button" key={mark} data-mark={mark} aria-pressed={pressed.includes(mark)} disabled={range[0]===range[1]} onMouseDown={e=>e.preventDefault()}
           onClick={()=>apply(mark)}>{text}</button>)}</div>
     <div className="insert-tools" role="group" aria-label={`${label} 특수 문자 넣기`}>
       {([["○","빈 원"],["·","가운뎃점"],["→","오른쪽 화살표"],["「」","홑낫표 쌍"],["‘","여는 작은따옴표"],

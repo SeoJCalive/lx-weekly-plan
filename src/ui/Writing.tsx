@@ -3,7 +3,7 @@ import type { DepartmentView, ItemView, Organisation, Person, WeekView } from ".
 import { categories, plainText, type WorkCategory } from "../shared/weekly-plan";
 import { api } from "./api";
 import { Preview, tableGeometry } from "./Preview";
-import { marked } from "./text";
+import { marked, sameLine } from "./text";
 import { EmphasisField } from "./EmphasisField";
 import { TableEditor } from "./TableEditor";
 import { newTable } from "./table";
@@ -11,6 +11,30 @@ import { names, Status } from "./Workflow";
 import { ReviewCard } from "./ReviewCard";
 
 const itemPath=(it:ItemView)=>`items/${encodeURIComponent(it.id)}`;
+function otherEditor(it:ItemView,person:Person){
+  return it.lock && it.lock.personId!==person.id && it.lock.expiresAt>Date.now()?it.lock.name:undefined;
+}
+function EditorBadge({name}:{name:string}){
+  return <span className="editor-badge" role="img" aria-label={`${name} 편집 중`} title={`${name} 편집 중`}>{Array.from(name)[0]}</span>;
+}
+function ExportMenu({weekId,scopes,unsaved}:{weekId:number;scopes:{id:string;name:string}[];unsaved:boolean}) {
+  const [open,setOpen]=useState(false);
+  const box=useRef<HTMLDivElement>(null), trigger=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{
+    if(!open)return;
+    function outside(e:PointerEvent){if(!box.current?.contains(e.target as Node))setOpen(false);}
+    function escape(e:KeyboardEvent){if(e.key==="Escape"){setOpen(false);trigger.current?.focus();}}
+    document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);
+    return ()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);};
+  },[open]);
+  return <div ref={box} className="export-menu" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setOpen(false);}}>
+    <button type="button" ref={trigger} aria-label="HWPX 다운로드" aria-expanded={open} aria-controls="export-scopes"
+      onClick={()=>setOpen(!open)}><span aria-hidden="true">↓</span> HWPX</button>
+    <div id="export-scopes" hidden={!open} className="export-scopes">{scopes.map(u=><a className="button" key={u.id}
+      href={`/api/week/hwpx?weekId=${weekId}${u.id?`&organisationId=${encodeURIComponent(u.id)}`:""}`} download
+      onClick={e=>{if(unsaved && !confirm(`저장된 내용으로 ${u.name} 파일을 내려받을까요?`))e.preventDefault();setOpen(false);trigger.current?.focus();}}>{u.name}</a>)}</div>
+  </div>;
+}
 export function Writing({person,week,units,departmentId,itemId,picker,history}:{person:Person;week:WeekView;units:Organisation[];departmentId?:string;itemId?:string;picker:ReactNode;history:(id:string)=>void}) {
   const sections=week.departments.filter(d=>{
     let id:string|null=d.id;
@@ -39,9 +63,12 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   const working=useRef(false), current=useRef<string|undefined>(first?.id), live=useRef(true), held=useRef<string|undefined>(undefined);
   const [online,setOnline]=useState(navigator.onLine);
   const [,setLastContact]=useState(Date.now());
-  const dirty=!!draft && draft!==item, labelDirty=label!==dept.labels.thisWeek;
+  const dirty=!!draft && !!item && draft!==item && (draft.assignee!==item.assignee || !sameLine(draft.title,item.title,true) ||
+    (["content","notes"] as const).some(k=>draft[k].length!==item[k].length || draft[k].some((line,i)=>!sameLine(line,item[k][i]))) ||
+    (draft.tables!==item.tables && JSON.stringify(draft.tables)!==JSON.stringify(item.tables)));
+  const labelDirty=label!==dept.labels.thisWeek;
   const editable=!!item?.canEdit && !!item.lock && item.lock.personId===person.id && item.lock.expiresAt>Date.now() && online;
-  const other=!!item?.lock && item.lock.personId!==person.id;
+  const other=item && otherEditor(item,person);
   function replace(it:ItemView) {
     setDept(d=>({...d,items:{...d.items,[it.category]:d.items[it.category].some(x=>x.id===it.id)
       ? d.items[it.category].map(x=>x.id===it.id?it:x) : [...d.items[it.category],it]}}));
@@ -113,11 +140,12 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
     return ()=>{cancelled=true;clearInterval(timer);};
   },[item,online,dirty]);
   function assign() {
-    if (!item || !leaveOK())return;
+    if (!item)return;
+    const mine=item.assignedPeople.some(p=>p.id===person.id);
+    if (mine ? !confirm(dirty || note.trim()?"저장하지 않은 변경을 버리고 내 담당을 해제할까요?":"이 항목에서 내 담당을 해제할까요?") : !leaveOK())return;
     void action(async()=>{
-      const mine=item.assignedPeople.some(p=>p.id===person.id);
       const next=await api<ItemView>(itemPath(item)+"/assignment",mine?"DELETE":"POST");select(next);
-      if (!mine)await open(next);
+      if (mine)setNote("");else await open(next);
     });
   }
   function add() {
@@ -142,7 +170,6 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
     if(!item || !rendered)return;
     const {title,content,notes,tables,assignee}=rendered;
     select(await api<ItemView>(itemPath(item),"PUT",{title,content,notes,tables,...(assignee!==item.assignee ? {assignee} : {})}));
-    setFeedback("중간 저장됨");
   }
   const previewDept={...dept,labels:{...dept.labels,thisWeek:label},items:{...dept.items,[cat]:dept.items[cat].map(it=>it.id===rendered?.id?rendered:it)}};
   const mine=item?.assignedPeople.some(p=>p.id===person.id), number=dept.items[cat].findIndex(it=>it.id===item?.id)+1;
@@ -168,19 +195,19 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
       {person.departmentId===dept.id && <button disabled={busy || !online} onClick={add}>+ 항목 추가</button>}</div>
       <div className="categories" aria-label="업무 구분">{categories.map(c=><button key={c} aria-pressed={cat===c} disabled={busy}
         onClick={()=>{if(cat!==c)switchTo(c,dept.items[c][0]);}}>{names[c]} <small>{dept.items[c].length}</small></button>)}</div>
-      <ol className="items">{dept.items[cat].map((it,i)=><li key={it.id} data-returned={it.status==="수정 요청"}><button aria-current={it.id===item?.id?"true":undefined}
+      <ol className="items">{dept.items[cat].map((it,i)=>{const editor=otherEditor(it,person);return <li key={it.id} data-locked={!!editor} data-returned={it.status==="수정 요청"}><button aria-current={it.id===item?.id?"true":undefined}
         disabled={busy} onClick={()=>{if(it.id!==item?.id)switchTo(cat,it);}}><span className="num">{String(i+1).padStart(2,"0")}</span>
-        <span>{plainText(it.title) || "제목 없는 항목"}</span><Status value={it.status}/></button></li>)}</ol>
+        <span>{plainText(it.title) || "제목 없는 항목"}</span><span className="actions">{editor && <EditorBadge name={editor}/>}<Status value={it.status}/></span></button></li>;})}</ol>
       {!dept.items[cat].length && <p>아직 등록된 항목이 없습니다.</p>}
       {error && <p role="alert">{error}</p>}{!online && <p role="alert">오프라인입니다. 연결 후 저장하세요.</p>}
-      {item && draft && <section className="editor" data-returned={item.status==="수정 요청"}><div className="section-head"><h2>{names[cat]} {number}번</h2>
-        <div className="actions"><Status value={item.status}/><button disabled={busy} onClick={()=>history(item.id)}>항목 기록</button></div></div>
-        <div className="edit-tools"><span role="status">{other ? item.lock!.message : editable ? `${person.name} 편집 중` : "읽기 전용"}</span>
+      {item && draft && <section className="editor" data-locked={!!other} data-returned={item.status==="수정 요청"}><div className="section-head"><h2>{names[cat]} {number}번</h2>
+        <div className="actions">{other && <EditorBadge name={other}/>}<Status value={item.status}/><button disabled={busy} onClick={()=>history(item.id)}>항목 기록</button></div></div>
+        <div className="edit-tools">{!other && !editable && <span>읽기 전용</span>}
           {item.status==="검토 요청" && item.actions.includes("withdraw") && <button disabled={busy || !online} onClick={()=>review("withdraw")}>회수</button>}
           {item.status!=="검토 요청" && !other && (mine && !editable ? <button disabled={busy || !online} onClick={()=>void action(async()=>{
             const renewed=await api<ItemView>(itemPath(item)+"/lock","POST");held.current=renewed.id;
             if(dirty){setItem(renewed);replace(renewed);}else select(renewed);
-          })}>편집 시작</button> : <button className={mine?"":"primary"} disabled={busy || !online} onClick={assign}>{mine?"내 담당 해제":"내게 할당하고 편집"}</button>)}</div>
+          })}>편집 시작</button> : !mine && <button className="primary" disabled={busy || !online} onClick={assign}>내게 할당하고 편집</button>)}</div>
         {message && message.versionId===item.review.version?.id && <ReviewCard key={`request:${message.id}:${item.status}`} kind="request"
           message={message.message} at={message.at} sender={`${message.senderName} ${message.senderTitle}`}
           reviewUnit={message.reviewUnit} open={item.status==="수정 요청"}/>}
@@ -204,21 +231,21 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
             !!draft.tables.length && <p className="table-note">표 {draft.tables.length}개 · 양식 미리보기에서 확인</p>}
           <label>업무담당자<input value={draft.assignee} readOnly={!editable || busy}
             onChange={e=>setDraft({...draft,assignee:e.target.value})}/></label>
-          {(editable || feedback || item.actions.includes("request-review")) && <div className="save-line"><span role="status">{dirty?"저장하지 않은 변경":feedback || "저장된 내용"}</span>
+          {feedback && <p role="status">{feedback}</p>}
+          {(editable || item.actions.includes("request-review")) && <div className="save-line">
             <div className="revision-submit">
             {item.review.version && (item.actions.includes("request-review") || (editable && dirty)) && <label className="revision-note">수정 사유 (선택)
               <input value={note} disabled={busy || !online} onChange={e=>setNote(e.target.value)}/></label>}
-            <div className="actions">{editable && <button className={dirty?"primary":""} disabled={busy || !dirty}>중간 저장</button>}
+            <div className="actions">{editable && <><span className="save-dot" data-dirty={dirty} role="img" aria-label={dirty?"저장 안 된 변경 있음":"저장됨"} title={dirty?"저장 안 된 변경 있음":"저장됨"}/>
+              <button className={dirty?"primary":""} disabled={busy || !dirty}>중간 저장</button></>}
             {(item.actions.includes("request-review") || (editable && dirty)) && <button type="button" className={dirty?"":"primary"}
               disabled={busy || !online} onClick={()=>review("request-review")}>{dirty?"저장 후 검토 요청":item.review.version?"검토 재요청":"검토 요청"}</button>}</div></div></div>}
         </form>
+        {mine && editable && <div className="assignment-end"><button className="quiet-action" disabled={busy || !online} onClick={assign}>내 담당 해제</button></div>}
       </section>}
     </section>
     <aside className="preview-pane" aria-label="양식 미리보기"><div className="section-head export-head"><h2>양식 미리보기</h2>
-      <div className="actions" role="group" aria-label="HWPX 다운로드"><span>HWPX 다운로드</span>
-        {[{id:"",name:"전체 주차"},dept,...(office?[office]:[])].map(u=><a className="button" key={u.id}
-          href={`/api/week/hwpx?weekId=${week.id}${u.id?`&organisationId=${encodeURIComponent(u.id)}`:""}`} download aria-label={`${u.name} HWPX 다운로드`}
-          onClick={e=>{if((dirty || labelDirty) && !confirm(`저장된 내용으로 ${u.name} 파일을 내려받을까요?`))e.preventDefault();}}>{u.name}</a>)}</div></div>
+      <ExportMenu weekId={week.id} scopes={[{id:"",name:"전체 주차"},...(office?[office]:[]),dept]} unsaved={dirty || labelDirty}/></div>
       {person.departmentId===dept.id && <div className="label-tools">{editLabel ? <form onSubmit={e=>{
         e.preventDefault();void action(async()=>{
           const result=await api<Pick<DepartmentView,"labels">>(`departments/${dept.id}/label?weekId=${week.id}`,"PUT",{thisWeek:label});

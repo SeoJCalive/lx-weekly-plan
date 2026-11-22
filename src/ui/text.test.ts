@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { editLines, editText, emphasize, marked } from "./text";
+import { editLines, editText, emphasize, marked, selectionMarks, sameLine } from "./text";
 import type { RichText } from "../shared/weekly-plan";
 
 test("editing beside an emphasized word preserves the untouched runs", () => {
@@ -19,5 +19,14 @@ test("a textarea selection spans lines without replacing neighbouring emphasis",
   const result=emphasize(lines,1,4,"red");
   expect(result).toEqual([[{text:"앞",bold:true},{text:"뒤",bold:true,color:"red"}],
     [{text:"파",color:"red"},{text:"랑",color:"blue"}]]);
-  expect(emphasize(result,1,2,"clear")[0][1]).toEqual({text:"뒤",bold:false});
+  expect(selectionMarks(result,1,4)).toEqual(["red"]);
+  expect(selectionMarks(result,2,3)).toEqual([]);
+  expect(selectionMarks(result,1,1)).toEqual([]);
+  expect(emphasize(result,1,2,"bold")[0][1]).toEqual({text:"뒤",bold:false,color:"red"});
+  const cleared=emphasize(result,1,4,"red");
+  expect(cleared[0][1].bold).toBe(true);
+  expect(selectionMarks(cleared,1,4)).toEqual([]);
+  expect(selectionMarks(emphasize(result,1,4,"bold"),1,4)).toEqual(["bold","red"]);
+  expect(sameLine(emphasize(emphasize(lines,0,1,"red"),0,1,"red")[0],lines[0])).toBe(true);
+  expect(sameLine(result[0],lines[0])).toBe(false);
 });
