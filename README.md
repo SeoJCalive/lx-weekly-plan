@@ -19,6 +19,11 @@
   <a href="#실행">실행</a>
 </p>
 
+<p align="center">
+  <img src=".github/readme/writing.gif" alt="내용을 입력하면 오른쪽 양식 미리보기가 바로 바뀌는 모습" width="100%">
+  <br><sub>입력하는 대로 오른쪽 한글 양식 미리보기에 바로 반영됩니다.</sub>
+</p>
+
 <br>
 
 ## 소개
