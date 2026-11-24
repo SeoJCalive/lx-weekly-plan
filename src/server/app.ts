@@ -73,6 +73,11 @@ export function createApp({ db, templateBytes, now = Date.now }: {
     if (current && current.personId !== person.id) throw new ApiFailure(423, current.message, { lock: current });
     return current;
   }
+  function acquire(id: string, person: Person): void {
+    db.query(`INSERT INTO edit_locks VALUES (?, ?, ?)
+      ON CONFLICT(item_id) DO UPDATE SET person_id = excluded.person_id, expires_at = excluded.expires_at`)
+      .run(id, person.id, now() + lockIdleMs);
+  }
   function itemView(row: ItemRow, person: Person): ItemView {
     const assigned = assignedPeople(row.id), currentLock = lock(row.id);
     const visible = review.inScope(row.departmentId, person);
@@ -267,7 +272,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           person, sectionMatch[3] === "return" ? await body(request) : {});
         return json(weekReview.dashboard(person));
       }
-      const match = /^\/api\/items\/([^/]+)(?:\/(assignment|lock))?$/.exec(path);
+      const match = /^\/api\/items\/([^/]+)(?:\/(assignment|lock|open))?$/.exec(path);
       if (match) {
         const id = match[1], action = match[2], row = itemRow(id);
         if (!action && method === "GET") {
@@ -293,15 +298,23 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           })();
           return json(itemView(itemRow(id), person));
         }
+        if (action === "open" && method === "POST") {
+          if (!review.inScope(row.departmentId, person)) throw new ApiFailure(403, "소속 범위의 항목만 열람할 수 있습니다.");
+          const { release } = await body(request);
+          if (release !== undefined && typeof release !== "string") throw new ApiFailure(400, "해제할 항목이 올바르지 않습니다.");
+          db.transaction(() => {
+            if (release && release !== id) db.query("DELETE FROM edit_locks WHERE item_id = ? AND person_id = ?").run(release, person.id);
+            if (itemView(row, person).canEdit) acquire(id, person);
+          })();
+          return json(itemView(row, person));
+        }
         if (action === "lock" && (method === "POST" || method === "DELETE")) {
           editable(row, person);
           if (method === "POST" && row.status === "검토 요청")
             throw new ApiFailure(409, "검토 요청을 회수한 뒤 편집하세요.");
           db.transaction(() => {
             unlocked(id, person);
-            if (method === "POST") db.query(`INSERT INTO edit_locks VALUES (?, ?, ?)
-              ON CONFLICT(item_id) DO UPDATE SET person_id = excluded.person_id, expires_at = excluded.expires_at`)
-              .run(id, person.id, now() + lockIdleMs);
+            if (method === "POST") acquire(id, person);
             else db.query("DELETE FROM edit_locks WHERE item_id = ? AND person_id = ?").run(id, person.id);
           })();
           return json(itemView(row, person));

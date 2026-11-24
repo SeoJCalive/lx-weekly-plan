@@ -61,11 +61,11 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   const [dept,setDept]=useState(initial), [cat,setCat]=useState<WorkCategory>(first?.category ?? "thisWeek");
   const [item,setItem]=useState<ItemView|undefined>(first), [draft,setDraft]=useState<ItemView|undefined>(first);
   const [label,setLabel]=useState(initial.labels.thisWeek), [editLabel,setEditLabel]=useState(false);
-  const [busy,setBusy]=useState(false), [error,setError]=useState(""), [feedback,setFeedback]=useState("");
+  const [busy,setBusy]=useState(false), [moving,setMoving]=useState(false), [error,setError]=useState(""), [feedback,setFeedback]=useState("");
   const [note,setNote]=useState("");
   const [toolField,setToolField]=useState("title"),[toolbar,setToolbar]=useState<HTMLDivElement|null>(null);
   const tools=(name:string)=>({toolbar:toolField===name?toolbar:null,activate:()=>setToolField(name)});
-  const working=useRef(false), current=useRef<string|undefined>(first?.id), live=useRef(true), held=useRef<string|undefined>(undefined);
+  const working=useRef(false), current=useRef<string|undefined>(first?.id), live=useRef(true), held=useRef<string|undefined>(undefined), pending=useRef<{it:ItemView|undefined}|null>(null);
   const [online,setOnline]=useState(navigator.onLine);
   const [,setLastContact]=useState(Date.now());
   const dirty=!!draft && !!item && draft!==item && (draft.assignee!==item.assignee || !sameLine(draft.title,item.title,true) ||
@@ -106,8 +106,24 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
     if(live.current)select(fresh);
   }
   function switchTo(c:WorkCategory,it:ItemView|undefined) {
-    if (!leaveOK()) return;
-    void action(async()=>{await release();setCat(c);select(it);await open(it);});
+    if (!leaveOK() || (working.current && !moving)) return;
+    const from=held.current;
+    setCat(c);select(it?.lock?.personId===person.id ? {...it,lock:null} : it);held.current=from;
+    pending.current={it};
+    if (moving) return;
+    setMoving(true);
+    void action(async()=>{
+      try {
+        while (pending.current && live.current) {
+          const target=pending.current.it;pending.current=null;
+          if (!target) {await release();continue;}
+          const opened=await api<ItemView>(itemPath(target)+"/open","POST",{release:held.current});
+          held.current=opened.lock?.personId===person.id ? opened.id : undefined;
+          if (pending.current || !live.current) replace(opened);else select(opened);
+        }
+        if (!live.current) await release();
+      } finally {pending.current=null;setMoving(false);}
+    });
   }
   useEffect(()=>{
     live.current=true;
@@ -204,10 +220,10 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   }}>{sections.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
   <div className="workspace" data-unsaved={dirty || labelDirty || !!note.trim()}>
     <section className="input-pane"><div className="section-head"><h2>업무 항목</h2></div>
-      <div className="categories" aria-label="업무 구분">{categories.map(c=><button key={c} aria-pressed={cat===c} disabled={busy}
+      <div className="categories" aria-label="업무 구분">{categories.map(c=><button key={c} aria-pressed={cat===c} disabled={busy && !moving}
         onClick={()=>{if(cat!==c)switchTo(c,dept.items[c][0]);}}>{names[c]} <small>{dept.items[c].length}</small></button>)}</div>
       <ol className="items">{dept.items[cat].map((it,i)=>{const editor=otherEditor(it,person);return <li key={it.id} data-locked={!!editor} data-returned={it.status==="수정 요청"}><button aria-current={it.id===item?.id?"true":undefined}
-        disabled={busy} onClick={()=>{if(it.id!==item?.id)switchTo(cat,it);}}><span className="num">{String(i+1).padStart(2,"0")}</span>
+        disabled={busy && !moving} onClick={()=>{if(it.id!==item?.id)switchTo(cat,it);}}><span className="num">{String(i+1).padStart(2,"0")}</span>
         <span>{plainText(it.title) || "제목 없는 항목"}</span><span className="actions">{editor && <EditorBadge name={editor}/>}<Status value={it.status}/></span></button></li>;})}</ol>
       {!dept.items[cat].length && <p>아직 등록된 항목이 없습니다.</p>}
       {person.departmentId===dept.id && <button disabled={busy || !online} onClick={add}>+ 항목 추가</button>}

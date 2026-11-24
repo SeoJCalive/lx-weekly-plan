@@ -391,6 +391,27 @@ describe("edit locks with an injected clock", () => {
     await call("POST", "/api/session", first, { employeeNumber: "W1002", name: "방지원" });
     expect((await call("POST", `/api/items/${item.id}/lock`, second)).data.lock?.name).toBe("방지원");
   });
+  test("opening an item moves the owner's lock in one request", async () => {
+    const from = await prepare(), to = await prepare();
+    await call("DELETE", `/api/items/${to.id}/lock`, first);
+    const opened = await call("POST", `/api/items/${to.id}/open`, first, { release: from.id });
+    expect(opened.data.lock?.name).toBe("나현수");
+    expect((await call("GET", `/api/items/${from.id}`, first)).data.lock).toBeNull();
+  });
+  test("opening another person's locked item is read-only and still releases the old lock", async () => {
+    const locked = await prepare(true), from = await create(second);
+    await call("POST", `/api/items/${from.id}/assignment`, second);
+    await call("POST", `/api/items/${from.id}/lock`, second);
+    const opened = await call("POST", `/api/items/${locked.id}/open`, second, { release: from.id });
+    expect(opened.data).toMatchObject({ canEdit: false, lock: { name: "나현수" } });
+    expect((await call("GET", `/api/items/${from.id}`, second)).data.lock).toBeNull();
+  });
+  test("opening an item cannot release another person's lock", async () => {
+    const locked = await prepare(true), to = await create(second);
+    await call("POST", `/api/items/${to.id}/assignment`, second);
+    await call("POST", `/api/items/${to.id}/open`, second, { release: locked.id });
+    expect((await call("GET", `/api/items/${locked.id}`, second)).data.lock?.name).toBe("나현수");
+  });
 });
 
 test("the real download handler returns a zip starting with mimetype", async () => {
