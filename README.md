@@ -53,34 +53,41 @@ LX 기획혁신본부는 매주 처마다 한글 파일로 주간업무 계획�
 
 ## 화면
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src=".github/readme/review.png" alt="검토 현황">
-      <p><b>검토 현황</b><br><sub>조직별 진행 상태를 한눈에 보고, 항목을 펼쳐 승인하거나 수정을 요청합니다.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src=".github/readme/history.png" alt="이력">
-      <p><b>이력</b><br><sub>누가 언제 검토를 요청하고 승인했는지, 그때 제출한 내용이 무엇이었는지 남습니다.</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src=".github/readme/board.png" alt="게시판">
-      <p><b>게시판</b><br><sub>최종 승인된 계획을 차수별로 모아 보고 한글 파일로 내려받습니다.</sub></p>
-    </td>
-    <td width="50%" valign="top">
-      <img src=".github/readme/hwpx.png" alt="한글에서 연 출력 파일">
-      <p><b>내려받은 한글 파일</b><br><sub>원본 양식의 표, 서식, 수식 필드가 그대로 유지됩니다. 한글에서 연 화면입니다.</sub></p>
-    </td>
-  </tr>
-</table>
+### 작성
+<img src=".github/readme/writing.png" alt="작성 화면: 왼쪽 입력과 표 편집, 오른쪽 양식 미리보기">
 
-**작성 화면에서 할 수 있는 일**
+왼쪽에서 칸별로 입력하면 오른쪽 양식 미리보기에 바로 반영됩니다. 표는 셀 병합, 합계 수식, 머리 색 칠하기까지 화면에서 편집합니다.
 
 | 입력 | 표 | 협업 |
 |---|---|---|
 | 굵게, 파랑·빨강 강조<br>자주 쓰는 특수 문자 버튼<br>Ctrl+Z 되돌리기·다시 하기 | 행·열 추가, 병합, 합계 수식<br>머리 색·회색 칠하기<br>앞 표 옆에 나란히 붙이기 | 한 항목에 여러 담당자<br>편집 중에는 다른 사람은 읽기만<br>받은 수정 요청을 항목 아래에 표시 |
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>검토 현황</h3>
+      <img src=".github/readme/review.png" alt="검토 현황: 재요청 항목의 수정 사유와 승인·수정 요청 버튼">
+      <p>작성자가 적은 수정 사유를 보고 바로 승인하거나 다시 수정을 요청합니다. 왼쪽에서 처마다 처·실·본부 단계가 어디까지 왔는지 보입니다.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>이력</h3>
+      <img src=".github/readme/history.png" alt="이력: 이전 제출과 비교">
+      <p>항목마다 검토 요청, 수정 요청, 재요청이 시간순으로 남고, 이전 제출과 무엇이 바뀌었는지 비교해 보여 줍니다.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>게시판</h3>
+      <img src=".github/readme/board.png" alt="게시판">
+      <p>최종 승인된 계획을 차수별로 모아 보고 한글 파일로 내려받습니다.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>내려받은 한글 파일</h3>
+      <img src=".github/readme/hwpx.png" alt="한글에서 연 출력 파일">
+      <p>원본 양식의 표, 서식, 수식 필드가 그대로 유지됩니다. 한글에서 연 화면입니다.</p>
+    </td>
+  </tr>
+</table>
 
 ## 만든 방식
 
