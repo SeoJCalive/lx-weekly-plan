@@ -226,10 +226,10 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
         disabled={busy && !moving} onClick={()=>{if(it.id!==item?.id)switchTo(cat,it);}}><span className="num">{String(i+1).padStart(2,"0")}</span>
         <span>{plainText(it.title) || "제목 없는 항목"}</span><span className="actions">{editor && <EditorBadge name={editor}/>}<Status value={it.status}/></span></button></li>;})}</ol>
       {!dept.items[cat].length && <p>아직 등록된 항목이 없습니다.</p>}
-      {person.departmentId===dept.id && <button disabled={busy || !online} onClick={add}>+ 항목 추가</button>}
+      {person.departmentId===dept.id && <button className="text-add" disabled={busy || !online} onClick={add}>+ 항목 추가</button>}
       {error && <p role="alert">{error}</p>}{!online && <p role="alert">오프라인입니다. 연결 후 저장하세요.</p>}
       {item && draft && <section className="editor" data-locked={!!other} data-returned={item.status==="수정 요청"}><div className="section-head"><h2>{names[cat]} {number}번</h2>
-        <div className="actions">{other && <EditorBadge name={other}/>}<Status value={item.status}/><button disabled={busy} onClick={()=>history(item.id)}>처리 이력</button></div></div>
+        <div className="actions">{other && <EditorBadge name={other}/>}<Status value={item.status}/><button className="text-link" disabled={busy} onClick={()=>history(item.id)}>처리 이력</button></div></div>
         <div className="edit-tools">{!other && !editable && <span>읽기 전용</span>}
           {item.status==="검토 요청" && item.actions.includes("withdraw") && <button disabled={busy || !online} onClick={()=>review("withdraw")}>회수</button>}
           {item.status!=="검토 요청" && !other && (mine && !editable ? <button disabled={busy || !online} onClick={()=>void action(async()=>{
@@ -266,7 +266,7 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
                   setDraft({...draft,tables});setError("");
                 }catch(e){if(e instanceof Error)setError(e.message);else throw e;}
               }}/>)}
-            <button type="button" onClick={()=>{
+            <button className="text-add" type="button" onClick={()=>{
               const {width,height}=tableGeometry(draft.templateItemId??draft.id,`${dept.id}/${cat}`);
               setDraft({...draft,tables:[...draft.tables,newTable(cat==="ongoing"?3:2,cat==="ongoing"?4:3,width,height)]});
             }}>+ 표 추가</button></fieldset> :
@@ -283,7 +283,7 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
             {(item.actions.includes("request-review") || (editable && dirty)) && <button type="button" className={dirty?"":"primary"}
               disabled={busy || !online} onClick={()=>review("request-review")}>{dirty?"저장 후 검토 요청":item.review.version?"검토 재요청":"검토 요청"}</button>}</div></div></div>}
         </form>
-        {mine && editable && <div className="assignment-end"><button className="quiet-action" disabled={busy || !online} onClick={assign}>담당 취소</button></div>}
+        {mine && editable && <div className="assignment-end"><button className="text-link" disabled={busy || !online} onClick={assign}>담당 취소</button></div>}
       </section>}
     </section>
     <aside className="preview-pane" aria-label="양식 미리보기"><div className="section-head export-head"><h2>양식 미리보기</h2>
@@ -294,7 +294,7 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
           setDept(d=>({...d,labels:result.labels}));setLabel(result.labels.thisWeek);setEditLabel(false);
         });}}><label>금주 계획 소제목<UndoInput value={label} required change={setLabel}/></label>
         <button disabled={busy || !online || !label.trim()}>적용</button><button type="button" onClick={()=>{setLabel(dept.labels.thisWeek);setEditLabel(false);}}>취소</button></form>
-        : <><span>금주 계획 소제목 <b>{label}</b></span><button onClick={()=>setEditLabel(true)}>소제목 변경</button></>}</div>}
+        : <><span>금주 계획 소제목 <b>{label}</b></span><button className="text-link" onClick={()=>setEditLabel(true)}>소제목 변경</button></>}</div>}
       <Preview dept={previewDept} week={week}/>
     </aside>
   </div></>;

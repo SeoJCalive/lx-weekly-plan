@@ -191,6 +191,14 @@ label input,label select,label textarea {font-weight:400}
 .review-heading {display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--line)}
 .review-heading .review-toggle,.history-link {border:0}
 .history-link {font-weight:400;text-decoration:underline;color:var(--mute)}
+button:is(.text-add,.text-link) {min-height:32px;padding:var(--s1) 0;border:0;background:transparent}
+.text-add {color:var(--nav-current);font-weight:600}
+.text-link {color:var(--mute);font-weight:400;text-decoration:underline}
+.text-add:hover:not(:disabled) {background:transparent;text-decoration:underline}
+.text-link:hover:not(:disabled) {background:transparent;color:var(--ink)}
+:is(.text-add,.text-link):active:not(:disabled) {background:transparent}
+:is(.text-add,.text-link):disabled {color:var(--edge);background:transparent}
+:is(.status,.deadline p)+.text-link::before {content:"";width:1px;height:12px;margin-right:var(--s3);background:var(--line)}
 .doc-history {border:0;padding:0;display:inline-flex;align-items:baseline;gap:var(--s1);text-align:left;font:inherit}
 .doc-history svg {width:var(--small);height:var(--small);flex:none;color:var(--mute)}
 .doc-history:is(:hover,:focus-visible) .doc-title {text-decoration:underline;text-underline-offset:.15em}

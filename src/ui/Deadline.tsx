@@ -11,7 +11,7 @@ export function Deadline({value,manage,update}:{value:DeadlineView;manage:boolea
   return <div className="deadline">
     <p><span>마감 <time dateTime={new Date(value.deadlineAt).toISOString()}>{koreaTime.format(value.deadlineAt)}</time></span>
       <strong role={value.passed?"alert":undefined}>{value.passed?"마감 경과":"마감 전"}</strong></p>
-    {value.canChange && manage && (draft===null?<button ref={trigger} onClick={()=>setDraft(new Date(value.deadlineAt+9*3600000).toISOString().slice(0,16))}>마감 변경</button>:
+    {value.canChange && manage && (draft===null?<button ref={trigger} className="text-link" onClick={()=>setDraft(new Date(value.deadlineAt+9*3600000).toISOString().slice(0,16))}>마감 변경</button>:
       <form className="actions" onSubmit={async e=>{
         e.preventDefault();setBusy(true);setError("");
         try{update(await api<DeadlineView>(`deadline?weekId=${value.weekId}`,"PUT",{deadlineAt:Date.parse(draft+":00+09:00")}));close();}
