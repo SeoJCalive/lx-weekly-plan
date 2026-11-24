@@ -8,6 +8,7 @@ export async function api<T>(path: string, method = "GET", body?: unknown): Prom
     method, headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!response.ok) throw new Error((await response.json()).error);
+  if (response.status === 401) window.dispatchEvent(new Event("lx:signed-out"));
+  if (!response.ok) throw Object.assign(new Error((await response.json()).error), { status: response.status });
   return response.status === 204 ? undefined as T : response.json();
 }

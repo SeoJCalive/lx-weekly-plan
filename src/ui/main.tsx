@@ -71,7 +71,11 @@ function Screen({person,units,place,go}:{person:Person;units:Organisation[];plac
 function App() {
   const [accounts, setAccounts] = useState<Person[]>([]), [units, setUnits] = useState<Organisation[]>([]);
   const [person, setPerson] = useState<Person | null>(), [place,setPlace]=useState<Place>({page:"게시판"});
-  const [error, setError] = useState(""), [todo,setTodo]=useState<TodoView>();
+  const [error, setError] = useState(""), [todo,setTodo]=useState<TodoView>(), [signedOut,setSignedOut]=useState(false);
+  useEffect(()=>{
+    const out=()=>{setSignedOut(true);setPerson(null);setPlace({page:"게시판"});};
+    window.addEventListener("lx:signed-out",out);return ()=>window.removeEventListener("lx:signed-out",out);
+  },[]);
   useEffect(() => {
     Promise.all([api<Person[]>("accounts"), api<Organisation[]>("organisations"), api<{person: Person|null}>("session")])
       .then(([people, org, session]) => {setAccounts(people);setUnits(org);setPerson(session.person);})
@@ -98,8 +102,8 @@ function App() {
     setPlace({weekId:place.weekId,...next});window.scrollTo(0,0);
   }
   if (error) return <main className="page"><h1>불러오기 실패</h1><p role="alert">{error}</p><button onClick={() => location.reload()}>다시 시도</button></main>;
-  if (person === null) return <SignIn accounts={accounts} units={units} onSignIn={p => {
-    setAccounts(old => old.some(a => a.id === p.id) ? old : [...old,p]);setPerson(p);
+  if (person === null) return <SignIn accounts={accounts} units={units} signedOut={signedOut} onSignIn={p => {
+    setAccounts(old => old.some(a => a.id === p.id) ? old : [...old,p]);setSignedOut(false);setPerson(p);
   }} />;
   if (!person) return <main className="page" role="status">주간업무 계획을 불러오는 중…</main>;
   const org = units.find(o => o.id === person.organisationId);
@@ -113,7 +117,7 @@ function App() {
     <div className="identity"><b>{person.name} {person.title}</b><span>{org?.name} · {roles[person.role]}</span>
       <button onClick={async () => {
         if (document.querySelector('[data-unsaved="true"]') && !confirm("저장하지 않은 변경을 버리고 사용자를 변경할까요?")) return;
-        try {await api("session","DELETE");setPlace({page:"게시판"});setPerson(null);}catch(e){setError((e as Error).message);}
+        try {await api("session","DELETE");setPlace({page:"게시판"});setPerson(null);}catch(e){if((e as {status?:number}).status!==401)setError((e as Error).message);}
       }}>사용자 변경</button></div>
   </header>
   {place.page==="게시판"?<Publications accounts={accounts} postId={place.postId}/>:

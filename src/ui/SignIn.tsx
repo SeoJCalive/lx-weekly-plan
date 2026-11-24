@@ -10,8 +10,8 @@ const demoFocus = [
 ] as const;
 const demoNumbers = new Set<string>(demoFocus.map(([number]) => number));
 
-export function SignIn({ accounts, units, onSignIn }: {
-  accounts: Person[]; units: Organisation[]; onSignIn: (person: Person) => void;
+export function SignIn({ accounts, units, signedOut, onSignIn }: {
+  accounts: Person[]; units: Organisation[]; signedOut: boolean; onSignIn: (person: Person) => void;
 }) {
   const [name, setName] = useState(""), [number, setNumber] = useState("");
   const [profile, setProfile] = useState(false), [busy, setBusy] = useState(false);
@@ -36,6 +36,7 @@ export function SignIn({ accounts, units, onSignIn }: {
   return <><header className="mast"><strong>주간업무 계획</strong></header>
     <main className="entry">
       <section><h1>로그인</h1><p>이름과 사번으로 로그인합니다.</p>
+        {signedOut && <p className="signed-out" role="status">로그인이 풀렸습니다. 다시 로그인해 주세요.</p>}
         <form onSubmit={submit} className="fields">
           <label>이름<input required autoComplete="name" value={name} onChange={e => setName(e.target.value)} /></label>
           <label>사번<input required autoComplete="username" value={number} onChange={e => {setNumber(e.target.value);setProfile(false);}} /></label>

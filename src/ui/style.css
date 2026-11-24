@@ -291,6 +291,7 @@ button:is(.text-add,.text-link) {min-height:32px;padding:var(--s1) 0;border:0;ba
 .entry h2 {font-size:var(--h2)}
 .entry form {max-width:24rem}
 .entry form>button {min-height:44px}
+.entry>section>p.signed-out {max-width:24rem;margin-top:calc(-1 * var(--s3));padding:var(--s2) var(--s3);border-left:3px solid var(--action);background:color-mix(in srgb,var(--action) 7%,#fff)}
 .account-group {border-top:1px solid var(--line);padding:var(--s4) 0}
 .account-group h3 {margin-bottom:var(--s3)}
 .account-list {display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--s2)}
