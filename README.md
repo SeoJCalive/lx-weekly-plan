@@ -45,15 +45,7 @@ LX 기획혁신본부는 매주 처마다 한글 파일로 주간업무 계획�
 
 ## 결재 흐름
 
-```mermaid
-flowchart LR
-    A["작성자"] --> B["처 검토"] --> C["실 검토"] --> D["최종 승인"] --> E["게시판"]
-
-    classDef step fill:#f4f6f8,stroke:#c9d0d6,color:#1e2124
-    classDef done fill:#007a68,stroke:#007a68,color:#ffffff
-    class A,B,C,D step
-    class E done
-```
+<p align="center"><img src=".github/readme/flow.svg" width="820" alt="작성자 → 처 검토 → 실 검토 → 최종 승인 → 게시판"></p>
 
 - 처 검토자는 항목별로 승인하고, 처의 모든 항목이 승인되면 처 취합본을 올립니다. 실이 없는 처는 본부로 바로 올라갑니다.
 - 어느 단계에서든 항목을 지목해 수정을 요청할 수 있고, 고쳐 올리면 위 단계는 고친 부분만 다시 봅니다.

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="190" viewBox="0 0 880 190" font-family="'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif">
+  <rect width="880" height="190" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#8a949e"/>
+    </marker>
+  </defs>
+  <g font-size="15" text-anchor="middle">
+    <rect x="10" y="40" width="140" height="70" rx="6" fill="#f4f6f8" stroke="#c9d0d6"/>
+    <text x="80" y="70" font-weight="700" fill="#1e2124">작성자</text>
+    <text x="80" y="92" font-size="12.5" fill="#5f6b76">항목 작성 · 검토 요청</text>
+
+    <rect x="190" y="40" width="140" height="70" rx="6" fill="#f4f6f8" stroke="#c9d0d6"/>
+    <text x="260" y="70" font-weight="700" fill="#1e2124">처 검토</text>
+    <text x="260" y="92" font-size="12.5" fill="#5f6b76">항목별 승인 · 처 상신</text>
+
+    <rect x="370" y="40" width="140" height="70" rx="6" fill="#f4f6f8" stroke="#c9d0d6"/>
+    <text x="440" y="70" font-weight="700" fill="#1e2124">실 검토</text>
+    <text x="440" y="92" font-size="12.5" fill="#5f6b76">처별 승인 · 실 상신</text>
+
+    <rect x="550" y="40" width="140" height="70" rx="6" fill="#f4f6f8" stroke="#c9d0d6"/>
+    <text x="620" y="70" font-weight="700" fill="#1e2124">최종 승인</text>
+    <text x="620" y="92" font-size="12.5" fill="#5f6b76">본부장 · 마감 설정</text>
+
+    <rect x="730" y="40" width="140" height="70" rx="6" fill="#007a68"/>
+    <text x="800" y="70" font-weight="700" fill="#ffffff">게시판</text>
+    <text x="800" y="92" font-size="12.5" fill="#e3f2ef">완성본 · 한글 파일</text>
+  </g>
+  <g stroke="#8a949e" stroke-width="1.6" fill="none" marker-end="url(#a)">
+    <path d="M150 75H186"/>
+    <path d="M330 75H366"/>
+    <path d="M510 75H546"/>
+    <path d="M690 75H726"/>
+    <path d="M440 110V138H160V114" stroke="#b5413a" stroke-dasharray="5 4"/>
+    <path d="M260 40V24H620V36" stroke="#006498" stroke-dasharray="5 4"/>
+  </g>
+  <g font-size="12.5" text-anchor="middle">
+    <text x="300" y="158" fill="#b5413a">어느 단계에서든 항목을 지목해 수정 요청 → 고친 부분만 다시 검토</text>
+    <text x="400" y="13" fill="#006498">실이 없는 처는 본부로 바로 올라감</text>
+  </g>
+</svg>
