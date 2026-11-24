@@ -98,11 +98,10 @@ label input,label select,label textarea {font-weight:400}
 .table-tools input {width:6em;padding:var(--s1)}
 .save-line {padding:var(--s3) 0;background:var(--paper);border-top:1px solid var(--line)}
 .actions {display:flex;align-items:center;flex-wrap:wrap;gap:var(--s2)}
-.items li[data-returned=true],.editor[data-returned=true] {outline:var(--s1) solid var(--returned);outline-offset:calc(-1 * var(--s1))}
-.editor[data-returned=true] {padding:var(--s3)}
+.items li[data-returned=true] button {background:color-mix(in srgb,var(--returned) 6%,var(--paper));box-shadow:inset 3px 0 var(--returned)}
+.editor[data-returned=true] {padding:var(--s3) var(--s3) var(--s3) var(--s4);border:1px solid var(--line);box-shadow:inset 3px 0 var(--returned)}
 .items li[data-locked=true] button,.editor[data-locked=true] {border:1px solid var(--writing)}
 .editor[data-locked=true] {padding:var(--s3)}
-.items li[data-locked=true][data-returned=true],.editor[data-locked=true][data-returned=true] {outline-width:1px;outline-offset:1px}
 .editor-badge {display:inline-grid;place-items:center;width:var(--s5);height:var(--s5);border-radius:50%;background:var(--writing);color:var(--paper);font-size:var(--caption);font-weight:600}
 .edit-tools:empty {border:0;padding:0;margin-bottom:var(--s4)}
 @media (min-width:861px) and (max-height:760px) {
