@@ -26,14 +26,42 @@
 LX 기획혁신본부는 매주 처마다 한글 파일로 주간업무 계획을 써서 주고받고, 단계마다 검토를 거쳐 손으로 모읍니다.
 이 시스템은 그 과정을 웹 페이지 하나로 옮기고, 결과물은 원래 쓰던 한글 양식 그대로 내려받게 합니다.
 
-<p align="center"><img src=".github/readme/features.png" alt="01 웹에서 작성, 02 단계별 결재, 03 한글 양식 그대로" width="100%"></p>
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <b>웹에서 작성</b><br><br>
+      항목을 칸별로 입력하면 옆의 양식 미리보기에 바로 반영됩니다.
+    </td>
+    <td width="33%" valign="top">
+      <b>단계별 결재</b><br><br>
+      처 → 실 → 본부 순서로 승인하고, 어느 단계에서든 항목을 지목해 수정을 요청합니다.
+    </td>
+    <td width="33%" valign="top">
+      <b>한글 양식 그대로</b><br><br>
+      게시된 완성본을 원본 양식과 같은 hwpx 파일로 내려받습니다.
+    </td>
+  </tr>
+</table>
 
 ## 결재 흐름
 
-<p align="center"><img src=".github/readme/flow.png" alt="작성자 → 처 검토 → 실 검토 → 최종 승인 → 게시판" width="100%"></p>
+```mermaid
+flowchart LR
+    A["작성자<br/>항목 작성 · 검토 요청"] --> B["처 검토<br/>항목별 승인 · 처 상신"]
+    B --> C["실 검토<br/>처별 승인 · 실 상신"]
+    C --> D["최종 승인<br/>본부장 · 마감 설정"]
+    D --> E["게시판<br/>완성본 · 한글 파일"]
+    B -. 실이 없는 처 .-> D
+    B & C & D -. 수정 요청 .-> A
 
+    classDef step fill:#f4f6f8,stroke:#c9d0d6,color:#1e2124
+    classDef done fill:#007a68,stroke:#007a68,color:#ffffff
+    class A,B,C,D step
+    class E done
+```
+
+- 수정 요청은 항목을 지목해 보내고, 작성자가 고쳐 올리면 위 단계는 고친 부분만 다시 봅니다.
 - 처 검토자는 처의 모든 항목이 승인되면 처 취합본을 올립니다.
-- 승인된 항목을 고쳐 다시 올리면 위 단계는 고친 부분만 다시 봅니다.
 - 마감은 최종 승인자가 정하고, 다음 주차는 지난주 "금주 계획"을 "전주 실적"으로 넘겨 시작합니다.
 
 ## 화면
