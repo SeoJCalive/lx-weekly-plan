@@ -9,7 +9,7 @@ import { seed } from "../src/shared/seed";
 import { plainText } from "../src/shared/weekly-plan";
 import { demoContent, demoResults, demoReturns, demoPublicationFix } from "./demo-content";
 
-test("시연 주차·배포 차수·최종 승인·수정 요청과 재생성 결과", async () => {
+test("예제 주차·게시 차수·최종 승인·수정 요청과 재생성 결과", async () => {
   const directory = mkdtempSync(join(tmpdir(), "lx-demo-test-"));
   const template = new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer());
   const snapshots = [];

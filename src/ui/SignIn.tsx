@@ -47,7 +47,7 @@ export function SignIn({ accounts, units, onSignIn }: {
         </form>
       </section>
       <section aria-label="사용자 목록"><div className="account-head"><div><h2>사용자 선택</h2><p>이름을 선택하면 그 사용자로 로그인합니다.</p>
-          {demo.length > 0 && <p className="recommend-note"><span className="recommend">추천</span> 시연용 추천 사용자<br />작성부터 최종 승인까지 이어지는 결재 라인입니다.</p>}</div>
+          {demo.length > 0 && <p className="recommend-note"><span className="recommend">추천</span> 추천 사용자<br />작성부터 최종 승인까지 이어지는 결재 라인입니다.</p>}</div>
         {demo.length > 0 && <aside className="recommend-focus" aria-label="추천 사용자별로 할 수 있는 일">
           <dl>{demo.map(([name, focus]) => <div key={name}><dt>{name}</dt><dd>{focus}</dd></div>)}</dl></aside>}</div>
         {units.filter(o => accounts.some(a => a.organisationId === o.id)).map(o => <section className="account-group" key={o.id}>

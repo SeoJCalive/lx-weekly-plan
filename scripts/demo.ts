@@ -211,7 +211,7 @@ if (import.meta.main) {
   try {
     await buildDemo(db, new Uint8Array(await Bun.file("assets/template/weekly-plan.hwpx").arrayBuffer()));
     console.log(JSON.stringify(demoSummary(db), null, 2));
-    console.log(`시연 데이터를 만들었습니다: ${databasePath}`);
+    console.log(`예제 데이터를 만들었습니다: ${databasePath}`);
   } finally {
     db.close();
   }

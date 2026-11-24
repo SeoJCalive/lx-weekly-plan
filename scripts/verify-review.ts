@@ -45,10 +45,10 @@ const edit = async (notes: string) => {
   });
 };
 await itemAction(item8.id, "assignment", "W1001");
-await edit(" * 시연 작성");
+await edit(" * 검증 작성");
 await itemAction(item8.id, "request-review", "W1001");
 await itemAction(item8.id, "return", "R0001", { message: "검토 근거를 보완하세요." });
-await edit(" * 시연 검토 근거 보완");
+await edit(" * 검증 검토 근거 보완");
 const resubmitted = await itemAction(item8.id, "request-review", "W1001");
 if (resubmitted.review.version?.number !== 2) throw new Error("Expected the second fixed review version.");
 await itemAction(item8.id, "approve", "R0001");
