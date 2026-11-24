@@ -1,7 +1,10 @@
 <p align="center"><sub>한국국토정보공사(LX) <a href="https://yw.work24.go.kr/c/c/selectYgmnWkexBizln.do">일경험</a> 프로젝트 · 2026 · 화면 속 이름과 데이터는 가상입니다</sub></p>
 
 <p align="center">
-  <img src=".github/readme/banner.png" alt="LX 주간업무 계획: 작성부터 결재, 게시까지 웹에서 처리하고 기존 한글 양식 그대로 내려받습니다." width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/banner-dark.png">
+    <img src=".github/readme/banner.png" alt="LX 주간업무 계획: 작성부터 결재, 게시까지 웹에서 처리하고 기존 한글 양식 그대로 내려받습니다." width="100%">
+  </picture>
 </p>
 
 <p align="center">
@@ -160,7 +163,3 @@ scripts/           예제 데이터 생성, 검증 스크립트
 ```
 
 </details>
-
-<br>
-
-<p align="center"><sub>화면과 파일에 나오는 사람 이름과 업무 내용은 모두 가상입니다.</sub></p>
