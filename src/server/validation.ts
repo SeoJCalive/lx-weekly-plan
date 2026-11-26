@@ -1,6 +1,7 @@
 import type { SaveItemRequest } from "../shared/api";
-import type { RichText, WorkTable } from "../shared/weekly-plan";
+import type { RichText, WorkCategory, WorkTable } from "../shared/weekly-plan";
 import { validateTable } from "../shared/table-validation";
+import { titleError } from "../shared/title";
 
 export class ApiFailure extends Error {
   constructor(public status: number, message: string, public extra: Record<string, unknown> = {}) {
@@ -50,12 +51,14 @@ function table(value: unknown): value is WorkTable {
 }
 
 
-export function saveInput(value: unknown): SaveItemRequest {
+export function saveInput(value: unknown, category: WorkCategory): SaveItemRequest {
   const body = object(value);
   if (!richText(body.title) || !lines(body.content) || !lines(body.notes) ||
     !Array.isArray(body.tables) || !body.tables.every(table) ||
     (body.assignee !== undefined && body.assignee !== null && typeof body.assignee !== "string"))
     throw new ApiFailure(400, "제목, 내용, 참고 사항, 표 또는 담당자 형식이 올바르지 않습니다.");
+  const problem = titleError(body.title, category);
+  if (problem) throw new ApiFailure(400, problem);
   if(new Set(body.tables.map(t=>t.id)).size!==body.tables.length)throw new ApiFailure(400,"표 ID가 중복됩니다.");
   return {
     title: body.title, content: body.content, notes: body.notes, tables: body.tables,

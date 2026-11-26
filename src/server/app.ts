@@ -320,7 +320,7 @@ export function createApp({ db, templateBytes, now = Date.now }: {
           return json(itemView(row, person));
         }
         if (!action && method === "PUT") {
-          const input = saveInput(await body(request));
+          const input = saveInput(await body(request), row.category);
           editable(row, person);
           if (row.status === "검토 요청") throw new ApiFailure(409, "검토 요청을 회수한 뒤 수정하세요.");
           db.transaction(() => {

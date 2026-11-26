@@ -4,6 +4,7 @@ import { categories, plainText, type WorkCategory } from "../shared/weekly-plan"
 import { api } from "./api";
 import { Preview, tableGeometry, tableStyles } from "./Preview";
 import { validateTableLayout } from "../shared/table-validation";
+import { titleError } from "../shared/title";
 import { arrangeTables, removeTable, tableRows } from "../shared/table-style";
 import { marked, sameLine } from "./text";
 import { EmphasisField } from "./EmphasisField";
@@ -197,6 +198,8 @@ function Desk({initial,week,person,sections,onSection,itemId,history,office}:{in
   async function save() {
     if(!item || !rendered)return;
     const {title,content,notes,tables,assignee}=rendered;
+    const problem=titleError(title,item.category);
+    if(problem)throw new RangeError(problem);
     select(await api<ItemView>(itemPath(item),"PUT",{title,content,notes,tables,...(assignee!==item.assignee ? {assignee} : {})}));
   }
   const previewDept={...dept,labels:{...dept.labels,thisWeek:label},items:{...dept.items,[cat]:dept.items[cat].map(it=>it.id===rendered?.id?rendered:it)}};

@@ -66,6 +66,30 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 
+describe("single-line item titles", () => {
+  test.each([["thisWeek", 19], ["lastWeek", 19], ["ongoing", 39]] as const)(
+    "%s accepts its form limit and rejects one more character without changing the saved title", async (category, limit) => {
+      const item = await create(first, category);
+      await call("POST", `/api/items/${item.id}/assignment`, first);
+      await call("POST", `/api/items/${item.id}/lock`, first);
+      const title = [{ text: "가".repeat(limit - 1) }, { text: "힣", color: "blue" as const }];
+      const accepted = await call("PUT", `/api/items/${item.id}`, first, { ...blank, title });
+      expect(accepted.response.status).toBe(200);
+      const rejected = await call("PUT", `/api/items/${item.id}`, first, { ...blank, title: [...title, { text: "나" }] });
+      expect(rejected.response.status).toBe(400);
+      expect((await call("GET", `/api/items/${item.id}`, first)).data.title).toEqual(title);
+    },
+  );
+  test.each(["줄\n바꿈", "줄\r바꿈", "탭\t제목", "줄\u2028바꿈", "줄\u2029바꿈"])(
+    "rejects a title containing line or control characters (%j)", async (text) => {
+      const item = await prepare();
+      const result = await call("PUT", `/api/items/${item.id}`, first, { ...blank, title: [{ text }] });
+      expect(result.response.status).toBe(400);
+      expect((await call("GET", `/api/items/${item.id}`, first)).data.title).toEqual([]);
+    },
+  );
+});
+
 describe("seed and startup", () => {
   test("an existing database gains version notes while retaining its submissions", async () => {
     const item = await prepare();
