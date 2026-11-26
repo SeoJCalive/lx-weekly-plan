@@ -81,7 +81,7 @@ export function EmphasisField({id,label,lines,rows,readOnly,toolbar,activate,cha
           onClick={()=>apply(mark)}>{text}</button>)}</div>
     <div className="insert-tools" role="group" aria-label={`${label} 특수 문자 넣기`}>
       {([["○","빈 원"],["·","가운뎃점"],["→","오른쪽 화살표"],["「」","홑낫표 쌍"],["‘","여는 작은따옴표"],
-        ["□","빈 사각형"],["○ (내용) ","내용 머리말"]] as const).map(([text,name])=>
+        ["□","빈 사각형"],[" ○ (내용) ","내용 머리말"],["   * ","참고 사항 머리말"]] as const).map(([text,name])=>
         <button type="button" key={text} aria-label={`${name} 넣기`} title={`${name} 넣기`}
           onMouseDown={e=>e.preventDefault()} onClick={()=>insert(text)}>{text}</button>)}
     </div></div>,toolbar)}
