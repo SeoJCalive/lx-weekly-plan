@@ -21,6 +21,80 @@ describe("weekly plan hwpx", () => {
     const generated = strFromU8(unzipSync(generate())["Contents/section0.xml"]);
     expect(generated).toBe(expected.replace("<hp:t> 4</hp:t>", "<hp:t> 3</hp:t>"));
   });
+  test.each(["content", "notes"] as const)("new %s lines use measured marker advances and removed markers reset indent", kind => {
+    const data = structuredClone(seed), item = data.departments[0].items.lastWeek[0];
+    // Hancom at 150 dpi: 1 px = 48 HWPUNIT; expectations are independent of the generator.
+    const cases = [
+      ["일반 문장", 0, 0], [" ○ (내용) 본문", 2200, 1795],
+      ["  ** 참고", 2507, 2115], [" - 하위", 1461, 1267],
+      ["\u3000○ 본문", 2752, 2246], ["○ (내용) 본문", 1651, 1347],
+      ["   * 참고", 2627, 2178], ["표식 없는 문장", 0, 0], ["○공백없음", 0, 0], ["", 0, 0],
+    ] as const;
+    item[kind] = cases.map(([text]) => [{ text }]);
+    const original = readTemplate(template), result = readTemplate(generate(data));
+    const sourceItem = original.items.get(item.id), resultItem = result.items.get(item.id);
+    if (!sourceItem || !resultItem) throw new Error("Missing item fixture");
+    const sources = paragraphs(sourceItem.body).slice(1).filter(p =>
+      kind === "notes" ? /^\s*\*/.test(paragraphText(p)) : !/^\s*\*/.test(paragraphText(p)));
+    const first = kind === "content" ? 1 : 1 + item.content.length;
+    const ps = paragraphs(resultItem.body).slice(first, first + cases.length);
+    expect(ps).toHaveLength(cases.length);
+    for (const [index, p] of ps.entries()) {
+      const source = sources[index] ?? sources[0];
+      if (!source) throw new Error("Missing marker fixture");
+      const property = result.paraProperties.get(p.attributes.paraPrIDRef);
+      const base = original.paraProperties.get(source.attributes.paraPrIDRef);
+      if (!property || !base) throw new Error("Missing paragraph style");
+      const width = cases[index][kind === "content" ? 1 : 2];
+      expect(descendants(property, "hc:intent").map(n => Number(n.attributes.value)))
+        .toEqual([width ? -width : 0, width ? -2 * width : 0]);
+      const expected = clone(base);
+      setAttribute(expected, "id", property.attributes.id);
+      for (const [i, intent] of descendants(expected, "hc:intent").entries())
+        setAttribute(intent, "value", width ? -width * (i + 1) : 0);
+      expect(serialize(property)).toBe(serialize(expected));
+    }
+  });
+  test("a new item with identical prototype content still normalizes marker styles", () => {
+    const data = structuredClone(seed), items = data.departments[0].items.lastWeek;
+    items.push({ ...structuredClone(items[0]), id: "new-identical-item", tables: [] });
+    const bytes = generate(data), header = parseXml(strFromU8(unzipSync(bytes)["Contents/header.xml"]));
+    const main = descendants(section(bytes), "hp:tbl").find(table => table.attributes.id === "1178668902");
+    if (!main) throw new Error("Missing new item table");
+    const row = children(main, "hp:tr").at(-2);
+    if (!row) throw new Error("Missing new item row");
+    const body = children(row, "hp:tc")[0];
+    const p = paragraphs(body)[1], property = descendants(header, "hh:paraPr").find(n => n.attributes.id === p.attributes.paraPrIDRef);
+    if (!property) throw new Error("Missing new paragraph style");
+    expect(paragraphText(p).startsWith(" ○ ")).toBe(true);
+    expect(descendants(property, "hc:intent").map(n => Number(n.attributes.value))).toEqual([-2200, -4400]);
+    let prefixLength = 0;
+    for (const run of children(p, "hp:run")) {
+      if (prefixLength >= 3) break;
+      expect(run.attributes.charPrIDRef).toBe("36");
+      prefixLength += paragraphText(element(`<hp:p>${serialize(run)}</hp:p>`)).length;
+    }
+  });
+  test("editing a body with the same marker retains its original paragraph and prefix typography", () => {
+    const data = structuredClone(seed), item = data.departments[0].items.lastWeek[0];
+    item.content[0].push({ text: " 추가 문장" });
+    const original = readTemplate(template), result = readTemplate(generate(data));
+    const before = original.items.get(item.id), after = result.items.get(item.id);
+    if (!before || !after) throw new Error("Missing item fixture");
+    const source = paragraphs(before.body)[1], output = paragraphs(after.body)[1];
+    expect(output.attributes.paraPrIDRef).toBe(source.attributes.paraPrIDRef);
+    expect(children(output, "hp:run").slice(0, 2).map(run => run.attributes.charPrIDRef))
+      .toEqual(children(source, "hp:run").slice(0, 2).map(run => run.attributes.charPrIDRef));
+  });
+  test("changing a marker keeps the author's emphasis on the marker and its body",()=>{
+    const data=structuredClone(seed),item=data.departments[0].items.lastWeek[0];
+    item.content=[[{text:" - ",color:"red",bold:true},{text:"강조한 본문",color:"blue"}]];
+    const result=readTemplate(generate(data)),output=result.items.get(item.id);
+    if(!output)throw new Error("Missing emphasized marker item");
+    expect(output.data.content[0]).toEqual([
+      {text:" - ",color:"red",bold:true},{text:"강조한 본문",color:"blue",bold:false}
+    ]);
+  });
   test("same-length assignees retain every template run while different lengths rebuild three runs", () => {
     const data = structuredClone(seed);
     const item = data.departments[0].items.thisWeek[0];

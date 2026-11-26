@@ -1,9 +1,10 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { validateTable, validateTableLayout } from "../shared/table-validation";
 import { formRuns } from "../shared/form-runs";
+import { hangingPrefix } from "../shared/paragraph";
 import { besidePrevious, cellOrigin, tableCellStyle, tableRows } from "../shared/table-style";
 import { bodyContentWidth, bodyMargins, coloredFills, inlineParagraph, templateTableStyles } from "./table-style";
-import { sumValue, type RichText, type TableCell, type WeeklyPlan, type WorkItem, type WorkTable } from "../shared/weekly-plan";
+import { plainText, sumValue, type RichText, type TableCell, type WeeklyPlan, type WorkItem, type WorkTable } from "../shared/weekly-plan";
 import { paragraphs, paragraphText, readTemplate, tableCells, type ItemTemplate } from "./template";
 import { child, children, clone, descendants, element, escapeXml, serialize, setAttribute, setText, textContent, type XmlNode } from "./xml";
 
@@ -55,6 +56,30 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
     const property = clone(base), id = String(t.paraProperties.size);
     setAttribute(property, "id", id);
     setAttribute(child(property, "hh:align"), "horizontal", alignment.toUpperCase());
+    const list = descendants(t.header, "hh:paraProperties")[0];
+    list.children.push(property);
+    t.paraProperties.set(id, property);
+    setAttribute(list, "itemCnt", t.paraProperties.size);
+    paraCache.set(key, id);
+    return id;
+  }
+  function indented(baseId: string, prefix: string, charId: "36" | "41"): string {
+    // Hancom charPr 36/41 at 150 dpi, 48 HWPUNIT/px; measured advances, not em assumptions.
+    // Probe precision is about 1 px per prefix. Round the total once, not each glyph.
+    const widths: Readonly<Record<string, number>> = charId === "36"
+      ? { " ": 1648 / 3, "○": 3304 / 3, "*": 1288 / 3, "-": 5432 / 15, "\u3000": 3304 / 3, "\t": 6592 / 3 }
+      : { " ": 448, "○": 899.2, "*": 385.6, "-": 371.2, "\u3000": 899.2, "\t": 1792 };
+    // ponytail: tabs approximate four spaces; actual tab stops need their own Hancom calibration.
+    const width = Math.round([...prefix].reduce((sum, glyph) => sum + widths[glyph], 0));
+    const key = `${baseId}/indent/${width}`;
+    const cached = paraCache.get(key);
+    if (cached) return cached;
+    const base = t.paraProperties.get(baseId);
+    if (!base) throw new Error(`Missing paragraph style ${baseId}`);
+    const property = clone(base), id = String(t.paraProperties.size);
+    setAttribute(property, "id", id);
+    for (const [index, margin] of descendants(property, "hh:margin").entries())
+      setAttribute(child(margin, "hc:intent"), "value", width ? -width * (index + 1) : 0);
     const list = descendants(t.header, "hh:paraProperties")[0];
     list.children.push(property);
     t.paraProperties.set(id, property);
@@ -207,8 +232,33 @@ export function generateHwpx(data: WeeklyPlan, templateBytes: Uint8Array): Uint8
       [item.content, old.content, contentPs, standardContent, "36"],
       [item.notes, old.notes, notePs, standardNote, "41"],
     ] as const) {
-      lines.forEach((line, i) => output.push(equal(line, previous[i]) && templates[i]
-        ? clone(templates[i]) : renderParagraph(templates[i] ?? templates[0] ?? standard, line, charId,!!templates[i] && !isNew)));
+      lines.forEach((line, i) => {
+        const source = templates[i] ?? templates[0] ?? standard, keep = !!templates[i] && !isNew;
+        const p = keep && equal(line, previous[i]) ? clone(source) : renderParagraph(source, line, charId, keep);
+        const prefix = hangingPrefix(plainText(line));
+        if (!keep || prefix !== hangingPrefix(paragraphText(source))) {
+          setAttribute(p, "paraPrIDRef", indented(source.attributes.paraPrIDRef, prefix, charId));
+          if (prefix.length) {
+            let skip = prefix.length;
+            const suffix = children(p, "hp:run").flatMap(run => {
+              const text = children(run, "hp:t").map(textContent).join(""), cut = Math.min(skip, text.length);
+              skip -= cut;
+              if (!cut) return [run];
+              if (cut === text.length) return [];
+              setText(child(run, "hp:t"), text.slice(cut));
+              return [run];
+            });
+            let remaining=prefix.length;
+            const head=line.flatMap(span=>{
+              const count=Math.min(remaining,span.text.length);
+              remaining-=count;
+              return count?[{...span,text:span.text.slice(0,count)}]:[];
+            });
+            p.children = [...renderParagraph(source, head, charId).children, ...suffix];
+          }
+        }
+        output.push(p);
+      });
     }
     const tablePs = sourcePs.filter((p) => descendants(p, "hp:tbl").length);
     const width=bodyContentWidth(destination,hasNewTables?tableStyles.inline.bodyMargin:undefined);

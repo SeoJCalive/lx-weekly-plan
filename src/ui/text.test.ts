@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { editLines, editText, emphasize, marked, selectionMarks, sameLine } from "./text";
+import { editLines, editText, emphasize, linesText, marked, selectionMarks, sameLine } from "./text";
 import type { RichText } from "../shared/weekly-plan";
 
 test("editing beside an emphasized word preserves the untouched runs", () => {
@@ -29,4 +29,32 @@ test("a textarea selection spans lines without replacing neighbouring emphasis",
   expect(selectionMarks(emphasize(result,1,4,"bold"),1,4)).toEqual(["bold","red"]);
   expect(sameLine(emphasize(emphasize(lines,0,1,"red"),0,1,"red")[0],lines[0])).toBe(true);
   expect(sameLine(result[0],lines[0])).toBe(false);
+});
+test("splitting and joining paragraphs preserve the untouched emphasis on both sides",()=>{
+  const old:RichText[]=[[{text:"앞뒤",color:"red",bold:true}],[{text:"다음",color:"blue"}]];
+  const split=editLines(old,"앞\n뒤\n다음");
+  expect(split).toEqual([[{text:"앞",color:"red",bold:true}],[{text:"뒤",color:"red",bold:true}],old[1]]);
+  expect(split[2]).toBe(old[1]);
+  expect(editLines(old,"앞뒤다음")).toEqual([[...old[0],...old[1]]]);
+  expect(editLines(old,"앞새음")).toEqual([[
+    {text:"앞",color:"red",bold:true},{text:"새",color:"red",bold:true},{text:"음",color:"blue"},
+  ]]);
+});
+test("paragraph edits retain empty and trailing lines without inventing text",()=>{
+  for(const value of ["","\n","a\n","a\n\nb","\n\n"]) {
+    const edited=editLines([[{text:"old",color:"blue"}]],value);
+    expect(linesText(edited)).toBe(value);
+    expect(editLines(edited,value)).toBe(edited);
+  }
+  expect(editLines([[{text:"a"}]],"a\n")).toEqual([[{text:"a"}],[]]);
+  expect(editLines([[{text:"a"}],[]],"a")).toEqual([[{text:"a"}]]);
+});
+test("existing hyphen markers and their literal whitespace are kept in notes",()=>{
+  const lines:RichText[]=[
+    [{text:"   - "},{text:"참고",bold:true}],
+    [{text:"\u3000-\u3000"},{text:"다음",color:"red"}],
+    [{text:"   "}],
+  ];
+  expect(marked(lines,[],true)).toEqual(lines);
+  marked(lines,[],true).forEach((line,i)=>expect(line).toBe(lines[i]));
 });

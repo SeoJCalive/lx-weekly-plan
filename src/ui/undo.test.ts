@@ -44,6 +44,20 @@ test("Ctrl or Cmd with Z undoes; with Shift+Z or Y it redoes", () => {
   expect([key("KeyZ",{ctrlKey:true}),key("KeyZ",{metaKey:true}),key("KeyZ",{ctrlKey:true,shiftKey:true}),
     key("KeyY",{ctrlKey:true}),key("KeyZ",{}),key("KeyZ",{ctrlKey:true,altKey:true})]).toEqual(["undo","undo","redo","redo",undefined,undefined]);
 });
+test("menu undo and redo retain backward selections across paragraph boundaries",()=>{
+  let history:ReturnType<typeof useUndo<string>>|undefined;
+  function Capture(){history=useUndo<string>();return null;}
+  renderToStaticMarkup(createElement(Capture));
+  if(!history)throw new TypeError("React did not render the hook capture");
+  const before:Step<string>={value:"ab\ncd",caret:{start:1,end:4,direction:"backward"}};
+  const after:Step<string>={value:"aXd",caret:{start:2,end:2,direction:"forward"}};
+  let current=after;
+  history.record(before);
+  history.move("undo",()=>current,step=>{current=step;});
+  expect(current).toEqual(before);
+  history.move("redo",()=>current,step=>{current=step;});
+  expect(current).toEqual(after);
+});
 
 function keyEvent(code:string):React.KeyboardEvent {
   const keys={altKey:false,ctrlKey:true,metaKey:false,shiftKey:false,charCode:0,keyCode:0,

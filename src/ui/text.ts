@@ -45,7 +45,7 @@ export function emphasize(lines: RichText[], start: number, end: number, mark: E
         {...span,text:part,...(mark==="bold" ? {bold:!remove} : {color:remove?undefined:mark})},
         ...(b<text.length ? [{...span,text:text.slice(b)}] : [])];
     });
-    offset++; // A textarea represents the paragraph boundary with one newline.
+    offset++; // Logical paragraph boundaries occupy one newline.
     return result;
   });
 }
@@ -79,13 +79,23 @@ export function editLines(old: RichText[], value: string): RichText[] {
   let start=0,end=0;
   while (start<Math.min(lines.length,old.length) && lines[start]===plainText(old[start])) start++;
   while (end<Math.min(lines.length,old.length)-start && lines.at(-1-end)===plainText(old.at(-1-end)!)) end++;
-  return lines.map((line,i) => i<start ? old[i] : i>=lines.length-end ? old[old.length-(lines.length-i)] :
-    editText(i<old.length-end ? old[i] : [],line));
+  const middle:RichText[]=[];
+  if(start<lines.length-end) {
+    const runs=old.slice(start,old.length-end).flatMap((line,i)=>i?[{text:"\n",bold:false},...line]:line);
+    middle.push([]);
+    for(const span of editText(runs,lines.slice(start,lines.length-end).join("\n"))) {
+      span.text.split("\n").forEach((text,i)=>{
+        if(i)middle.push([]);
+        if(text)middle[middle.length-1].push({...span,text});
+      });
+    }
+  }
+  return [...old.slice(0,start),...middle,...(end?old.slice(-end):[])];
 }
 export function marked(lines: RichText[], original: RichText[], note: boolean) {
   return lines.map((line,i) => {
     const text = plainText(line);
-    if (!text.trim() || /^\s*(?:○|\*)/.test(text) || original.some(x=>plainText(x)===text)) return line;
+    if (!text.trim() || /^\s*(?:○|\*|-)/.test(text) || original.some(x=>plainText(x)===text)) return line;
     return [{text:note ? (i===0 ? " * " : " ** ") : " ○ "},...line];
   });
 }

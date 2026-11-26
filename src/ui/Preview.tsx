@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { plainText, sumValue, type Department, type WeeklyPlan, type WorkItem, type RichText, type WorkTable } from "../shared/weekly-plan";
 import { formLayout } from "./form-layout" with {type:"macro"};
 import { formRuns } from "../shared/form-runs";
+import { hangingPrefix } from "../shared/paragraph";
 import { tableCellStyle, tableMargins, tablePartWidth, tableRowLeading, tableRows } from "../shared/table-style";
 
 const layout = await formLayout();
@@ -14,6 +15,21 @@ const px = (units: number) => units/75;
 export function Runs({line}:{line:RichText}) {
   return <>{line.map((s,i) => <span key={i} data-color={s.color}
     style={{fontWeight:s.bold === undefined ? undefined : s.bold ? 700 : 400}}>{s.text}</span>)}</>;
+}
+function Paragraph({line,note=false}:{line:RichText;note?:boolean}) {
+  const length=hangingPrefix(plainText(line)).length;
+  let offset=0;
+  const prefix:RichText=[],body:RichText=[];
+  for(const span of line) {
+    const cut=Math.max(0,Math.min(span.text.length,length-offset));
+    if(cut)prefix.push({...span,text:span.text.slice(0,cut)});
+    if(cut<span.text.length)body.push({...span,text:span.text.slice(cut)});
+    offset+=span.text.length;
+  }
+  return <div className={note?"doc-note":"doc-content"}
+    style={length?{display:"grid",gridTemplateColumns:"max-content minmax(0,1fr)"}:undefined}>
+    {length?<><span><Runs line={prefix}/></span><span><Runs line={body}/></span></>:<Runs line={line}/>}
+  </div>;
 }
 function Title({item,number}:{item:WorkItem;number:number}){
   const line=[{text:`${number}. `},...item.title],source=layout.titleStyles[item.templateItemId??item.id];
@@ -64,8 +80,8 @@ function rows(groups: (WorkItem|undefined)[][], ongoing=false, options?:{history
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5M12 7v5l3 2"/></svg>
       </button>:<Title item={item} number={options?.number??i+1}/>}
-        {item.content.map((l,k)=><div className="doc-content" key={k}><Runs line={l}/></div>)}
-        {item.notes.map((l,k)=><div className="doc-note" key={k}><Runs line={l}/></div>)}
+        {item.content.map((l,k)=><Paragraph line={l} key={k}/>)}
+        {item.notes.map((l,k)=><Paragraph line={l} note key={k}/>)}
         {!!item.tables.length && <TableRows tables={item.tables}/>}
       </>}</td>)}</tr>
     <tr>{pair.map((item,j)=><td className="doc-assignee" key={j} style={{height:px(layout.byItem[item?.templateItemId ?? item?.id ?? ""]?.[1] ?? 2100)}}>

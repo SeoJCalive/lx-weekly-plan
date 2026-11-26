@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-export type Caret = {cell?:string;endCell?:string;start:number;end:number};
+export type Caret = {cell?:string;endCell?:string;start:number;end:number;direction?:"forward"|"backward"};
 export type Step<T> = {value:T;caret:Caret};
 export type Typing = {time:number;caret:Caret;newWord:boolean};
 export type Undo<T> = {past:Step<T>[];future:Step<T>[];typing?:Typing};
@@ -40,14 +40,18 @@ export function shortcut(e:{ctrlKey:boolean;metaKey:boolean;shiftKey:boolean;alt
 
 export function useUndo<T>() {
   const history=useRef<Undo<T>>({past:[],future:[]});
+  function move(way:"undo"|"redo",current:()=>Step<T>,restore:(step:Step<T>)=>void) {
+    const result=(way==="undo" ? undo : redo)(history.current,current());
+    if (result) {restore(result[1]);history.current=result[0];}
+  }
   return {
     record(before:Step<T>,typing?:Typing) {history.current=record(history.current,before,typing);},
+    move,
     keyDown(e:React.KeyboardEvent,current:()=>Step<T>,restore:(step:Step<T>)=>void) {
       const way=shortcut(e);
       if (!way || e.nativeEvent.isComposing) return;
       e.preventDefault();
-      const result=(way==="undo" ? undo : redo)(history.current,current());
-      if (result) {restore(result[1]);history.current=result[0];}
+      move(way,current,restore);
     },
   };
 }
